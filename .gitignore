@@ -1,0 +1,40 @@
+# Rust / Cargo
+target/
+**/*.rs.bk
+
+# Tauri (generated)
+src-tauri/gen/schemas/
+
+# Frontend / Node (if used)
+node_modules/
+dist/
+build/
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated UI index + large content
+ui/index.json
+ui/book/
+ui/books/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
