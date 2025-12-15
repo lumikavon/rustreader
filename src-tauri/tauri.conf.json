@@ -19,7 +19,14 @@
         "fullscreen": false
       }
     ],
+    "withGlobalTauri": true,
     "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      },
       "csp": null
     }
   },

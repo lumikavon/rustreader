@@ -377,10 +377,14 @@
 	    let disposePdfViewer = null;
 	    let disposeWordToc = null;
 	    let currentWordHeadingStyles = null;
-	    let disposeCategoryMoreMenu = null;
+		    let disposeCategoryMoreMenu = null;
 		    const DOCX_STYLE_PREFIX = 'docx';
 		    const localFilesByPath = new Map();
+		    const diskFilePathsByVirtualPath = new Map();
 		    const localObjectUrlsByPath = new Map();
+		    const tauriCore = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core : null;
+		    const tauriInvoke = tauriCore && typeof tauriCore.invoke === 'function' ? tauriCore.invoke : null;
+		    const tauriConvertFileSrc = tauriCore && typeof tauriCore.convertFileSrc === 'function' ? tauriCore.convertFileSrc : null;
 		    let currentSourceLabel = '未选择目录';
 		    let hasUserSelection = false;
 
@@ -770,6 +774,11 @@
       
 		      if (!allEntries.length) {
 		        const hasSelection = hasUserSelection;
+		        const totalPreviewableCount = fileGroups.reduce((sum, group) => {
+		          const categories = group?.categories || {};
+		          return sum + Object.values(categories).reduce((sub, files) => sub + (files?.length || 0), 0);
+		        }, 0);
+		        const hasAnyPreviewableFiles = totalPreviewableCount > 0;
 		        treeContainer.innerHTML = '';
 		        const emptyWrap = document.createElement('div');
 		        emptyWrap.style.padding = '1rem';
@@ -785,19 +794,19 @@
 			        let emptyMessage = '无匹配文件';
 			        if (!hasSelection) {
 			          emptyMessage = '请点击上方“打开”选择文件夹';
-			        } else if (localFilesByPath.size === 0) {
+			        } else if (!hasAnyPreviewableFiles) {
 			          emptyMessage = '所选内容中没有支持预览的文件。';
 			        }
 			        emptyText.textContent = emptyMessage;
 			        emptyWrap.appendChild(emptyText);
 
-			        if (!hasSelection || localFilesByPath.size === 0) {
+			        if (!hasSelection || !hasAnyPreviewableFiles) {
 			          const openBtn = document.createElement('button');
 			          openBtn.type = 'button';
 			          openBtn.className = 'btn btn--primary btn-sm';
 			          openBtn.textContent = '打开文件夹...';
 		          openBtn.addEventListener('click', () => {
-		            if (openFolderInput) openFolderInput.click();
+		            void requestOpenFolder();
 		          });
 		          emptyWrap.appendChild(openBtn);
 		        }
@@ -806,7 +815,7 @@
 			        if (treeMetaEl) {
 			          const prefix = currentSourceLabel ? `${currentSourceLabel} · ` : '';
 			          if (!hasSelection) treeMetaEl.textContent = currentSourceLabel || '未选择目录';
-			          else if (localFilesByPath.size === 0) treeMetaEl.textContent = `${prefix}没有可预览文件`;
+			          else if (!hasAnyPreviewableFiles) treeMetaEl.textContent = `${prefix}没有可预览文件`;
 			          else treeMetaEl.textContent = `${prefix}无匹配文件`;
 			        }
 			        return;
@@ -1724,6 +1733,7 @@
 	      });
 	      localObjectUrlsByPath.clear();
 	      localFilesByPath.clear();
+	      diskFilePathsByVirtualPath.clear();
 	    }
 
 	    function encodeAssetPath(path) {
@@ -1737,6 +1747,10 @@
 	      return localFilesByPath.get(path) || null;
 	    }
 
+	    function getDiskFilePath(path) {
+	      return diskFilePathsByVirtualPath.get(path) || null;
+	    }
+
 	    function resolveResourceUrl(path) {
 	      const file = getLocalFile(path);
 	      if (file) {
@@ -1745,12 +1759,21 @@
 	        }
 	        return localObjectUrlsByPath.get(path);
 	      }
+	      const diskPath = getDiskFilePath(path);
+	      if (diskPath && tauriConvertFileSrc) {
+	        return tauriConvertFileSrc(diskPath);
+	      }
 	      return encodeAssetPath(path);
 	    }
 
 	    async function fetchText(p) {
 	      const file = getLocalFile(p);
 	      if (file && typeof file.text === 'function') return await file.text();
+	      const diskPath = getDiskFilePath(p);
+	      if (diskPath && tauriConvertFileSrc) {
+	        const r = await fetch(tauriConvertFileSrc(diskPath));
+	        return await r.text();
+	      }
 	      const r = await fetch(encodeAssetPath(p));
 	      return await r.text();
 	    }
@@ -1758,6 +1781,11 @@
 	    async function fetchBuffer(p) {
 	      const file = getLocalFile(p);
 	      if (file && typeof file.arrayBuffer === 'function') return await file.arrayBuffer();
+	      const diskPath = getDiskFilePath(p);
+	      if (diskPath && tauriConvertFileSrc) {
+	        const r = await fetch(tauriConvertFileSrc(diskPath));
+	        return await r.arrayBuffer();
+	      }
 	      const r = await fetch(encodeAssetPath(p));
 	      return await r.arrayBuffer();
 	    }
@@ -3069,6 +3097,82 @@
 	      return null;
 	    }
 
+	    function normalizeVirtualPath(value) {
+	      return String(value || '')
+	        .replace(/\\/g, '/')
+	        .replace(/^\.\//, '')
+	        .replace(/^\/+/, '');
+	    }
+
+	    function applyScannedFolderSelection(scan) {
+	      const entries = Array.from(scan?.files || []).filter((f) => f && typeof f === 'object');
+
+	      cleanupDrawioPanHandlers();
+	      cleanupPptxViewer();
+	      cleanupMarpitNavigation();
+	      cleanupPdfViewer();
+	      cleanupMediaPreview();
+	      cleanupWordToc();
+	      cleanupExcelPreview();
+		      try { singleImage.removeAttribute('src'); } catch {}
+
+		      clearLocalFileCache();
+		      hasUserSelection = true;
+
+		      const categories = {};
+		      entries.forEach((entry) => {
+		        const virtualPath = normalizeVirtualPath(entry?.virtualPath);
+		        const absPath = entry?.absPath;
+		        const type = entry?.category || categorizePath(virtualPath);
+		        if (!virtualPath || !absPath || !type) return;
+		        if (!categories[type]) categories[type] = [];
+		        categories[type].push(virtualPath);
+		        diskFilePathsByVirtualPath.set(virtualPath, absPath);
+		      });
+
+		      Object.values(categories).forEach((paths) => paths.sort(compareNames));
+
+		      fileGroups = [{ path: '.', categories }];
+		      currentCategory = 'all';
+		      currentIndex = 0;
+		      treeSearchTerm = '';
+		      if (treeSearchInput) {
+		        treeSearchInput.value = '';
+		        treeSearchInput.disabled = false;
+		      }
+		      if (treeSearchClear) treeSearchClear.classList.add('hidden');
+
+	      const label = scan?.label || scan?.root || '已打开文件夹';
+	      currentSourceLabel = label ? `本地: ${label}` : '本地文件夹';
+
+	      renderCategoryFilters();
+	      renderTree();
+
+	      if (filteredFiles.length > 0) {
+	        setCurrentFile(0);
+	      } else {
+	        showPreviewPlaceholder('所选内容中没有支持预览的文件。');
+	      }
+	    }
+
+	    async function requestOpenFolder() {
+	      if (!tauriInvoke) {
+	        if (openFolderInput) openFolderInput.click();
+	        return;
+	      }
+
+	      let scan = null;
+	      try {
+	        scan = await tauriInvoke('pick_and_scan_folder');
+	      } catch (error) {
+	        console.error(error);
+	        showPreviewPlaceholder(`打开文件夹失败: ${error?.message || String(error)}`);
+	        return;
+	      }
+	      if (!scan) return;
+	      applyScannedFolderSelection(scan);
+	    }
+
 	    function applyLocalFileSelection(fileList, sourceHint) {
 	      const files = Array.from(fileList || []).filter((f) => f && typeof f === 'object');
 	      if (!files.length) return;
@@ -3160,7 +3264,7 @@
 	      if (openFolderBtn) {
 	        openFolderBtn.addEventListener('click', () => {
 	          closeMenu();
-	          if (openFolderInput) openFolderInput.click();
+	          void requestOpenFolder();
 	        });
 	      }
 

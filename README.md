@@ -54,6 +54,11 @@ cargo install tauri-cli --version "^2"
 - 安装 Visual Studio Build Tools（C++ 工具链）
 - 安装 WiX Toolset（用于 `msi`）与 NSIS（用于 `.exe` 安装包）
 
+快速构建/运行脚本（项目根目录）：
+
+- `build.cmd` / `run.cmd`（cmd.exe）
+- `build.ps1` / `run.ps1`（PowerShell）
+
 ### macOS
 
 在 **macOS 本机**构建（不能在 Linux/WSL 直接产出 DMG/APP 安装包）：
@@ -119,4 +124,3 @@ rustweb
 ```bash
 sudo dpkg -r rust-web
 ```
-
