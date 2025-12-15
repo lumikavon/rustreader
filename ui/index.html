@@ -79,12 +79,13 @@
   <!-- Library Styles -->
   <link rel="stylesheet" href="assets/docx-preview.min.css" />
   <link rel="stylesheet" href="assets/xspreadsheet.css" />
-  <link rel="stylesheet" href="assets/pptxjs.css" />
-  <link rel="stylesheet" href="assets/nv.d3.min.css" />
-  <link rel="stylesheet" href="assets/highlight-github.min.css" />
-  <link rel="stylesheet" href="assets/marpit-default.css" />
-  <link rel="stylesheet" href="assets/github-markdown.css">
-</head>
+	  <link rel="stylesheet" href="assets/pptxjs.css" />
+	  <link rel="stylesheet" href="assets/nv.d3.min.css" />
+	  <link rel="stylesheet" href="assets/highlight-github.min.css" />
+	  <link rel="stylesheet" href="assets/katex.min.css" />
+	  <link rel="stylesheet" href="assets/marpit-default.css" />
+	  <link rel="stylesheet" href="assets/github-markdown.css">
+	</head>
 <body>
 
 	  <header class="header">
@@ -204,14 +205,16 @@
   <script src="assets/drawio-viewer.min.js"></script>
   <script src="assets/d3.v3.min.js"></script>
   <script src="assets/nv.d3.min.js"></script>
-  <script src="assets/dingbat.js"></script>
-  <script src="assets/pptxjs.js"></script>
-  <script src="assets/divs2slides.js"></script>
-  <script src="assets/marpit.min.js"></script>
-
-  <script>
-    // Mobile Menu Toggle
-    const menuToggle = document.getElementById('menuToggle');
+	  <script src="assets/dingbat.js"></script>
+	  <script src="assets/pptxjs.js"></script>
+	  <script src="assets/divs2slides.js"></script>
+	  <script src="assets/marpit.min.js"></script>
+	  <script src="assets/katex.min.js"></script>
+	  <script src="assets/katex-auto-render.min.js"></script>
+	
+	  <script>
+	    // Mobile Menu Toggle
+	    const menuToggle = document.getElementById('menuToggle');
     const headerNav = document.getElementById('categoryFilters');
     const mainSidebarToggle = document.getElementById('mainSidebarToggle');
     const mainContainer = document.querySelector('.main');
@@ -1318,9 +1321,29 @@
       const parts = path.split('/');
       return parts[parts.length - 1] || path;
     }
-    function escapeHtml(text) {
-      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
+	    function escapeHtml(text) {
+	      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	    }
+
+	    const LATEX_DELIMITERS = [
+	      { left: '$$', right: '$$', display: true },
+	      { left: '\\[', right: '\\]', display: true },
+	      { left: '$', right: '$', display: false },
+	      { left: '\\(', right: '\\)', display: false },
+	    ];
+
+	    function renderLatexInContainer(container) {
+	      if (!container) return;
+	      if (typeof window.katex !== 'object') return;
+	      if (typeof window.renderMathInElement !== 'function') return;
+	      try {
+	        window.renderMathInElement(container, {
+	          delimiters: LATEX_DELIMITERS,
+	          throwOnError: false,
+	          strict: 'ignore',
+	        });
+	      } catch {}
+	    }
     function getCategoryLabel(type) {
       if (type === 'all') return t('all');
       const categoryConfig = getCategoryConfig();
@@ -1800,20 +1823,22 @@
          `;
        }
 
-       docPreviewEl.innerHTML = `
-        <div class="markdown-wrapper">
-          ${sidebarHtml}
-          ${toggleBtnHtml}
-          <div class="markdown-content">
-            <article class="markdown-body">${bodyHtml}</article>
-          </div>
-        </div>
-       `;
-       
-       if (tocEntries.length > 0) {
-           const sidebar = document.getElementById('mdSidebar');
-           const toggleBtn = document.getElementById('mdSidebarToggle');
-           const closeBtn = document.getElementById('closeMdSidebarBtn');
+	       docPreviewEl.innerHTML = `
+	        <div class="markdown-wrapper">
+	          ${sidebarHtml}
+	          ${toggleBtnHtml}
+	          <div class="markdown-content">
+	            <article class="markdown-body">${bodyHtml}</article>
+	          </div>
+	        </div>
+	       `;
+
+	       renderLatexInContainer(docPreviewEl.querySelector('.markdown-body'));
+	       
+	       if (tocEntries.length > 0) {
+	           const sidebar = document.getElementById('mdSidebar');
+	           const toggleBtn = document.getElementById('mdSidebarToggle');
+	           const closeBtn = document.getElementById('closeMdSidebarBtn');
            const searchInput = document.getElementById('mdTocSearch');
            
            const toggleSidebar = () => {
@@ -3826,28 +3851,29 @@
          tocItems.push(button);
        });
 
-       if (!tocItems.length) {
-         if (toggleBtn) toggleBtn.classList.add('hidden');
-         if (toc) toc.classList.add('marpit-toc--empty');
-         if (searchInput) searchInput.disabled = true;
-         return;
-       }
+	       if (!tocItems.length) {
+	         if (toggleBtn) toggleBtn.classList.add('hidden');
+	         if (toc) toc.classList.add('marpit-toc--empty');
+	         if (searchInput) searchInput.disabled = true;
+	         return;
+	       }
 
-       setTocVisibility(false);
-       if (toggleBtn) toggleBtn.addEventListener('click', () => setTocVisibility(true));
-       if (closeBtn) closeBtn.addEventListener('click', () => setTocVisibility(false));
-       if (searchInput) {
-         searchInput.addEventListener('input', (event) => {
-           const term = event.target.value.trim().toLowerCase();
-           tocItems.forEach(item => {
-             const matches = item.textContent.toLowerCase().includes(term);
-             item.style.display = matches ? 'block' : 'none';
-           });
-         });
-       }
+	       setTocVisibility(false);
+	       if (toggleBtn) toggleBtn.addEventListener('click', () => setTocVisibility(true));
+	       if (closeBtn) closeBtn.addEventListener('click', () => setTocVisibility(false));
+	       if (searchInput) {
+	         searchInput.addEventListener('input', (event) => {
+	           const term = event.target.value.trim().toLowerCase();
+	           tocItems.forEach(item => {
+	             const matches = item.textContent.toLowerCase().includes(term);
+	             item.style.display = matches ? 'block' : 'none';
+	           });
+	         });
+	       }
 
-       setupMarpitKeyboardNavigation(slides);
-    }
+	       renderLatexInContainer(marpitWrapper);
+	       setupMarpitKeyboardNavigation(slides);
+	    }
 
     function updateImageTransform() {
        singleImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`;

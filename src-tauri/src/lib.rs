@@ -571,6 +571,10 @@ pub fn run() {
         }
       }
 
+      for window in app.webview_windows().values() {
+        let _ = window.maximize();
+      }
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
