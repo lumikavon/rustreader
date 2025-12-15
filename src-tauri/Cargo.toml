@@ -1,8 +1,8 @@
 [package]
-name = "rustweb"
+name = "rustreader"
 version = "1.0.0"
-description = "RustWeb Desktop App"
-authors = ["RustWeb"]
+description = "rustreader Desktop App"
+authors = ["rustreader"]
 license = ""
 repository = ""
 edition = "2021"

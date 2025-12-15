@@ -1,4 +1,4 @@
-# RustWeb (Tauri 2.x 桌面应用封装)
+# rustreader (Tauri 2.x 桌面应用封装)
 
 本项目使用 **Tauri 2.x** 将 `./ui` 目录下的静态网站打包为跨平台桌面应用。
 
@@ -109,18 +109,18 @@ cargo tauri build --no-sign
 ### 直接运行二进制
 
 ```bash
-./target/release/rustweb
+./target/release/rustreader
 ```
 
 ### 安装并启动（Linux .deb）
 
 ```bash
-sudo dpkg -i ./target/release/bundle/deb/RustWeb_1.0.0_amd64.deb
-rustweb
+sudo dpkg -i ./target/release/bundle/deb/rustreader_1.0.0_amd64.deb
+rustreader
 ```
 
 卸载：
 
 ```bash
-sudo dpkg -r rust-web
+sudo dpkg -r rustreader
 ```

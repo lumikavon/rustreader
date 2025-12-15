@@ -3,7 +3,7 @@ setlocal
 
 cd /d "%~dp0"
 
-set "EXE=%~dp0target\release\rustweb.exe"
+set "EXE=%~dp0target\release\rustreader.exe"
 if not exist "%EXE%" (
   echo [ERROR] "%EXE%" not found.
   echo         Run build.cmd first.

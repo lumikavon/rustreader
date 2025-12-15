@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./target/release/rustweb
+./target/release/rustreader
