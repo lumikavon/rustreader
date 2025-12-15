@@ -7,5 +7,5 @@ if (-not (Test-Path -LiteralPath $exePath)) {
   throw "Binary not found: $exePath`nRun build.cmd/build.ps1 first."
 }
 
-& $exePath @Args
+& $exePath --site-name "Test-Name" "$PSScriptRoot"
 exit $LASTEXITCODE

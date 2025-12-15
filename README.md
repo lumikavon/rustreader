@@ -112,6 +112,22 @@ cargo tauri build --no-sign
 ./target/release/rustreader
 ```
 
+### 命令行打开指定文件/文件夹
+
+支持：
+
+- `rustreader <path>`
+- `rustreader --open <path>` / `rustreader -o <path>`
+- `rustreader --site-name <name>`（应用名称显示为 `rustreader - <name>`）
+
+示例：
+
+```bash
+./target/release/rustreader /path/to/folder
+./target/release/rustreader /path/to/file.md
+./target/release/rustreader --site-name "我的站点" /path/to/folder
+```
+
 ### 安装并启动（Linux .deb）
 
 ```bash

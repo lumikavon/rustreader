@@ -12,16 +12,21 @@
       const FONT_SIZE_STEP = 1;
 
       const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-      const applyFontSize = (value, persist) => {
-        const fontPx = clamp(Math.round(value), MIN_FONT_SIZE, MAX_FONT_SIZE);
-        document.documentElement.style.setProperty('--ui-font-size', `${fontPx}px`);
-        window.__UI_FONT_SIZE_PX__ = fontPx;
-        if (persist) {
-          try {
-            localStorage.setItem(STORAGE_KEY, String(fontPx));
-          } catch {}
-        }
-      };
+	      const applyFontSize = (value, persist) => {
+	        const fontPx = clamp(Math.round(value), MIN_FONT_SIZE, MAX_FONT_SIZE);
+	        document.documentElement.style.setProperty('--ui-font-size', `${fontPx}px`);
+	        window.__UI_FONT_SIZE_PX__ = fontPx;
+	        try {
+	          if (typeof window.__RUSTREADER_ON_FONT_SIZE_CHANGE__ === 'function') {
+	            window.__RUSTREADER_ON_FONT_SIZE_CHANGE__(fontPx);
+	          }
+	        } catch {}
+	        if (persist) {
+	          try {
+	            localStorage.setItem(STORAGE_KEY, String(fontPx));
+	          } catch {}
+	        }
+	      };
 
       const computeDefaultFontSize = () => {
         const dpr = Number(window.devicePixelRatio) || 1;
@@ -93,12 +98,12 @@
 	            <line x1="16" y1="17" x2="8" y2="17"></line>
 	            <polyline points="10 9 9 9 8 9"></polyline>
 	          </svg>
-	          文件浏览器</a>
+	          <span id="brandText">文件浏览器</span></a>
 
 	        <div class="header__actions">
 	          <div class="nav__more header__open-menu">
 	            <button id="openMenuBtn" type="button" class="btn btn--ghost btn-sm" aria-haspopup="menu" aria-expanded="false" title="打开文件或文件夹">
-	              打开
+	              <span id="openMenuBtnLabel">打开</span>
 	              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 0.25rem;">
 	                <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
 	              </svg>
@@ -107,11 +112,13 @@
 	              <button id="openFolderBtn" type="button" class="nav__dropdown-item">打开文件夹...</button>
 	              <button id="openFileBtn" type="button" class="nav__dropdown-item">打开文件...</button>
 	            </div>
-	          </div>
-	          <input id="openFileInput" class="file-input" type="file" multiple />
-	          <input id="openFolderInput" class="file-input" type="file" webkitdirectory directory multiple />
-	        </div>
-	      </div>
+		          </div>
+		          <button id="langToggleBtn" type="button" class="btn btn--ghost btn-sm" aria-label="切换语言" title="切换语言">EN</button>
+		          <button id="aboutBtn" type="button" class="btn btn--ghost btn-sm" aria-label="关于" title="关于">关于</button>
+		          <input id="openFileInput" class="file-input" type="file" multiple />
+		          <input id="openFolderInput" class="file-input" type="file" webkitdirectory directory multiple />
+		        </div>
+		      </div>
 
 	      <div class="header__right">
 	        <button id="menuToggle" class="header__toggle" aria-label="Toggle menu">
@@ -127,7 +134,7 @@
   <main class="main">
     <aside class="sidebar">
       <div class="sidebar__header">
-        <h2 style="font-size: 0.875rem; margin-bottom: 0.5rem;">目录树</h2>
+        <h2 id="treeTitle" style="font-size: 0.875rem; margin-bottom: 0.5rem;">目录树</h2>
         <div class="input-group">
           <input id="treeSearchInput" type="text" class="input" placeholder="搜索文件..." />
           <button id="treeSearchClear" type="button" class="input-icon hidden" style="background:none; border:none;">
@@ -166,7 +173,7 @@
           <figure id="zoomContainer" class="image-canvas">
             <img id="singleImage" src="" alt="当前图片" class="single-image">
           </figure>
-          <p class="text-xs text-muted" style="text-align: right; margin-top: 0.5rem;">滚轮缩放 · 拖拽平移 · 双击重置</p>
+          <p id="imageHelpText" class="text-xs text-muted" style="text-align: right; margin-top: 0.5rem;">滚轮缩放 · 拖拽平移 · 双击重置</p>
         </div>
         <div id="docPreview" class="w-full h-full"></div>
       </div>
@@ -221,21 +228,467 @@
       });
     }
 
-	    const CATEGORY_CONFIG = {
-	      images: { label: '图片', helper: '缩略图浏览' },
-	      video: { label: '视频', helper: '视频预览' },
-	      audio: { label: '音频', helper: '音频预览' },
-      markdown: { label: 'MD', helper: '渲染 Markdown' },
-      mindmap: { label: '思维导图', helper: 'Markmap' },
-      drawio: { label: 'Draw.io', helper: '图表预览' },
-      marpit: { label: 'PPT(MD)', helper: 'Marpit 演示' },
-      pdf: { label: 'PDF', helper: 'PDF 预览' },
-      word: { label: 'Word', helper: 'Docx 渲染' },
-      excel: { label: 'Excel', helper: 'Spreadsheet' },
-      text: { label: 'TXT', helper: '文本预览' },
-      slides: { label: 'PPTX', helper: '幻灯片' },
+		    const APP_PREFIX = 'rustreader';
+		    const APP_AUTHOR = 'uforgetmenot';
+		    const APP_GITHUB_URL = 'https://github.com/uforgetmenot/rustreader';
+		    const LANGUAGE_STORAGE_KEY = 'ui.language';
+
+	    const I18N = {
+		      zh: {
+		        siteNameDefault: '文件浏览器',
+		        languageLabel: '语言',
+		        languageToggleToEn: 'EN',
+		        languageToggleToZh: '中文',
+		        about: '关于',
+		        aboutTitle: '关于',
+		        softwareName: '软件名称',
+		        author: '作者',
+		        githubUrl: 'GitHub',
+
+		        open: '打开',
+		        openTitle: '打开文件或文件夹',
+		        openMenuLabel: '打开菜单',
+	        openFolder: '打开文件夹...',
+	        openFile: '打开文件...',
+
+	        treeTitle: '目录树',
+	        searchFiles: '搜索文件...',
+	        toggleSidebar: '切换目录栏',
+	        selectFile: '请选择文件',
+	        selectFolder: '请选择文件夹',
+	        selectFileHint: '在左侧树中选择任意文件，即可在此预览。',
+	        selectFolderHint: '点击顶部“打开”选择文件夹',
+	        prevItem: '上一项',
+	        nextItem: '下一项',
+	        fullscreen: '全屏显示',
+	        currentImageAlt: '当前图片',
+	        imageHelp: '滚轮缩放 · 拖拽平移 · 双击重置',
+
+	        all: '全部',
+	        filterNoMatch: '当前筛选没有匹配文件。',
+	        more: '更多',
+	        moreFilters: '更多筛选',
+
+	        localPrefix: '本地: ',
+	        openedDirectory: '已打开目录',
+	        currentDirectory: '当前目录',
+	        noFolderSelected: '未选择目录',
+
+	        emptyNoMatch: '无匹配文件',
+	        emptyClickOpenFolder: '请点击上方“打开”选择文件夹',
+	        emptyNoPreviewable: '所选内容中没有支持预览的文件。',
+	        treeMetaNoPreviewable: '没有可预览文件',
+	        treeMetaNoMatch: '无匹配文件',
+	        treeMetaMatchCount: '匹配 {count} 个文件',
+
+	        toc: '目录',
+	        searchToc: '搜索目录...',
+	        showToc: '显示目录',
+
+	        loading: '加载中...',
+	        unsupportedPreview: '暂不支持预览',
+	        loadFailed: '加载失败: {message}',
+
+	        close: '关闭',
+	        cancel: '取消',
+	        confirm: '确定',
+	        invalidPositiveNumber: '请输入有效的正数值',
+	        rowHeightTitle: '统一设置行高',
+	        colWidthTitle: '统一设置列宽',
+	        rowHeightPx: '行高 (像素)',
+	        colWidthPx: '列宽 (像素)',
+
+	        setFontColor: '设置字体颜色',
+	        setFillColor: '设置填充颜色',
+	        rowHeight: '行高',
+	        colWidth: '列宽',
+	        setAllRowHeights: '统一设置所有行高',
+	        setAllColWidths: '统一设置所有列宽',
+	        autoRowHeight: '行高自适应',
+	        autoColWidth: '列宽自适应',
+	        autoFitAll: '一键自适应',
+	        autoRowHeightTitle: '根据内容自动调整行高',
+	        autoColWidthTitle: '根据内容自动调整列宽',
+	        autoFitAllTitle: '自动调整所有行高和列宽',
+
+	        pdfPrev: '上一页',
+	        pdfNext: '下一页',
+	        pdfJump: '跳转',
+	        pdfZoomOut: '缩小',
+	        pdfZoomIn: '放大',
+	        pdfFitWidth: '适应宽度',
+	        pdfToc: '目录',
+	        pdfLoading: '正在加载 PDF ...',
+	        pdfBookmarks: '书签',
+	        pdfBookmarksAria: 'PDF 书签列表',
+	        pdfViewBookmarks: '查看书签',
+	        pdfClose: '关闭',
+	        pdfPageInputPlaceholder: '页码',
+	        pdfSearchBookmarks: '搜索书签...',
+	        pdfLoadingBookmarks: '加载书签中...',
+	        pdfNoMatchingBookmarks: '没有匹配的书签',
+	        pdfNoBookmarks: '暂无书签',
+	        pdfUntitledBookmark: '未命名书签',
+	        pdfPageLabel: '第 {page} 页',
+	        pdfRenderStatus: '渲染第 {page} / {total} 页...',
+	        pdfLoadFailedRetry: 'PDF 加载失败，正在重试...',
+	        pdfLoadFailed: 'PDF 加载失败: {message}',
+	        unknownError: '未知错误',
+
+	        wordShowToc: '显示目录',
+	        wordTocTitle: '标题目录',
+	        wordCloseToc: '关闭目录',
+	        wordSearchHeadings: '搜索标题...',
+	        wordTocAria: 'Word 标题目录',
+	        wordNoMatchingHeadings: '没有匹配的标题',
+	        wordNoHeadings: '暂无可用标题',
+	        wordNoHeadingsDetected: '未检测到标题',
+
+	        zoomIn: '放大',
+	        zoomOut: '缩小',
+	        fitWindow: '适应窗口',
+	        resetView: '重置视图',
+
+	        marpitNav: '导航目录',
+
+	        openedFolder: '已打开文件夹',
+	        openedFiles: '已打开文件',
+	        localFolder: '本地文件夹',
+	        localFiles: '本地文件',
+
+		        openFolderFailed: '打开文件夹失败: {message}',
+		        openFailed: '打开失败: {message}',
+		        scanTitle: '正在扫描...',
+		        scanDetail: '已扫描 {dirs} 个目录，{files} 个文件，匹配 {matched} 个可预览文件',
+		        scanPath: '当前: {path}',
+
+		        missingScriptSrc: '缺少脚本地址',
+		        scriptLoadFailed: '脚本加载失败: {src}',
+		        pdfJsLoadFailed: 'PDF.js 加载失败',
+	      },
+		      en: {
+		        siteNameDefault: 'File Browser',
+		        languageLabel: 'Language',
+		        languageToggleToEn: 'EN',
+		        languageToggleToZh: '中文',
+		        about: 'About',
+		        aboutTitle: 'About',
+		        softwareName: 'App name',
+		        author: 'Author',
+		        githubUrl: 'GitHub',
+
+		        open: 'Open',
+		        openTitle: 'Open file or folder',
+		        openMenuLabel: 'Open menu',
+	        openFolder: 'Open folder...',
+	        openFile: 'Open file...',
+
+	        treeTitle: 'Directory',
+	        searchFiles: 'Search files...',
+	        toggleSidebar: 'Toggle sidebar',
+	        selectFile: 'Select a file',
+	        selectFolder: 'Select a folder',
+	        selectFileHint: 'Select any file in the tree to preview it here.',
+	        selectFolderHint: 'Click “Open” to choose a folder',
+	        prevItem: 'Previous',
+	        nextItem: 'Next',
+	        fullscreen: 'Fullscreen',
+	        currentImageAlt: 'Current image',
+	        imageHelp: 'Scroll to zoom · Drag to pan · Double-click to reset',
+
+	        all: 'All',
+	        filterNoMatch: 'No files match the current filter.',
+	        more: 'More',
+	        moreFilters: 'More filters',
+
+	        localPrefix: 'Local: ',
+	        openedDirectory: 'Opened',
+	        currentDirectory: 'Current',
+	        noFolderSelected: 'No folder selected',
+
+	        emptyNoMatch: 'No matching files',
+	        emptyClickOpenFolder: 'Click “Open” above to choose a folder',
+	        emptyNoPreviewable: 'No supported previewable files in the selection.',
+	        treeMetaNoPreviewable: 'No previewable files',
+	        treeMetaNoMatch: 'No matching files',
+	        treeMetaMatchCount: 'Matched {count} files',
+
+	        toc: 'Contents',
+	        searchToc: 'Search contents...',
+	        showToc: 'Show contents',
+
+	        loading: 'Loading...',
+	        unsupportedPreview: 'Preview not supported',
+	        loadFailed: 'Load failed: {message}',
+
+	        close: 'Close',
+	        cancel: 'Cancel',
+	        confirm: 'OK',
+	        invalidPositiveNumber: 'Enter a valid positive number',
+	        rowHeightTitle: 'Set row height',
+	        colWidthTitle: 'Set column width',
+	        rowHeightPx: 'Row height (px)',
+	        colWidthPx: 'Column width (px)',
+
+	        setFontColor: 'Text color',
+	        setFillColor: 'Fill color',
+	        rowHeight: 'Row height',
+	        colWidth: 'Column width',
+	        setAllRowHeights: 'Set all row heights',
+	        setAllColWidths: 'Set all column widths',
+	        autoRowHeight: 'Auto row height',
+	        autoColWidth: 'Auto column width',
+	        autoFitAll: 'Auto fit',
+	        autoRowHeightTitle: 'Auto fit row heights based on content',
+	        autoColWidthTitle: 'Auto fit column widths based on content',
+	        autoFitAllTitle: 'Auto fit all row heights and column widths',
+
+	        pdfPrev: 'Previous page',
+	        pdfNext: 'Next page',
+	        pdfJump: 'Go',
+	        pdfZoomOut: 'Zoom out',
+	        pdfZoomIn: 'Zoom in',
+	        pdfFitWidth: 'Fit width',
+	        pdfToc: 'Contents',
+	        pdfLoading: 'Loading PDF ...',
+	        pdfBookmarks: 'Bookmarks',
+	        pdfBookmarksAria: 'PDF bookmarks',
+	        pdfViewBookmarks: 'View bookmarks',
+	        pdfClose: 'Close',
+	        pdfPageInputPlaceholder: 'Page',
+	        pdfSearchBookmarks: 'Search bookmarks...',
+	        pdfLoadingBookmarks: 'Loading bookmarks...',
+	        pdfNoMatchingBookmarks: 'No matching bookmarks',
+	        pdfNoBookmarks: 'No bookmarks',
+	        pdfUntitledBookmark: 'Untitled bookmark',
+	        pdfPageLabel: 'Page {page}',
+	        pdfRenderStatus: 'Rendering page {page} / {total} ...',
+	        pdfLoadFailedRetry: 'PDF failed to load, retrying...',
+	        pdfLoadFailed: 'PDF load failed: {message}',
+	        unknownError: 'Unknown error',
+
+	        wordShowToc: 'Show contents',
+	        wordTocTitle: 'Headings',
+	        wordCloseToc: 'Close',
+	        wordSearchHeadings: 'Search headings...',
+	        wordTocAria: 'Word headings',
+	        wordNoMatchingHeadings: 'No matching headings',
+	        wordNoHeadings: 'No headings available',
+	        wordNoHeadingsDetected: 'No headings detected',
+
+	        zoomIn: 'Zoom in',
+	        zoomOut: 'Zoom out',
+	        fitWindow: 'Fit',
+	        resetView: 'Reset view',
+
+	        marpitNav: 'Outline',
+
+	        openedFolder: 'Opened folder',
+	        openedFiles: 'Opened files',
+	        localFolder: 'Local folder',
+	        localFiles: 'Local files',
+
+		        openFolderFailed: 'Failed to open folder: {message}',
+		        openFailed: 'Failed to open: {message}',
+		        scanTitle: 'Scanning...',
+		        scanDetail: 'Scanned {dirs} directories, {files} files, matched {matched} previewable files',
+		        scanPath: 'Current: {path}',
+
+		        missingScriptSrc: 'Missing script URL',
+		        scriptLoadFailed: 'Failed to load script: {src}',
+		        pdfJsLoadFailed: 'Failed to load PDF.js',
+	      },
 	    };
-	    const CATEGORY_ORDER = Object.keys(CATEGORY_CONFIG);
+
+	    const CATEGORY_ORDER = [
+	      'images',
+	      'video',
+	      'audio',
+	      'markdown',
+	      'mindmap',
+	      'drawio',
+	      'marpit',
+	      'pdf',
+	      'word',
+	      'excel',
+	      'text',
+	      'slides',
+	    ];
+
+	    const CATEGORY_CONFIG_BY_LANG = {
+	      zh: {
+	        images: { label: '图片', helper: '缩略图浏览' },
+	        video: { label: '视频', helper: '视频预览' },
+	        audio: { label: '音频', helper: '音频预览' },
+	        markdown: { label: 'MD', helper: '渲染 Markdown' },
+	        mindmap: { label: '思维导图', helper: 'Markmap' },
+	        drawio: { label: 'Draw.io', helper: '图表预览' },
+	        marpit: { label: 'PPT(MD)', helper: 'Marpit 演示' },
+	        pdf: { label: 'PDF', helper: 'PDF 预览' },
+	        word: { label: 'Word', helper: 'Docx 渲染' },
+	        excel: { label: 'Excel', helper: 'Spreadsheet' },
+	        text: { label: 'TXT', helper: '文本预览' },
+	        slides: { label: 'PPTX', helper: '幻灯片' },
+	      },
+	      en: {
+	        images: { label: 'Images', helper: 'Thumbnails' },
+	        video: { label: 'Video', helper: 'Video preview' },
+	        audio: { label: 'Audio', helper: 'Audio preview' },
+	        markdown: { label: 'MD', helper: 'Render Markdown' },
+	        mindmap: { label: 'Mindmap', helper: 'Markmap' },
+	        drawio: { label: 'Draw.io', helper: 'Diagram preview' },
+	        marpit: { label: 'PPT(MD)', helper: 'Marpit slides' },
+	        pdf: { label: 'PDF', helper: 'PDF preview' },
+	        word: { label: 'Word', helper: 'Docx render' },
+	        excel: { label: 'Excel', helper: 'Spreadsheet' },
+	        text: { label: 'TXT', helper: 'Text preview' },
+	        slides: { label: 'PPTX', helper: 'Slides' },
+	      },
+	    };
+
+	    function normalizeLanguage(value) {
+	      const v = String(value || '').toLowerCase();
+	      if (v === 'en') return 'en';
+	      return 'zh';
+	    }
+
+	    function detectLanguage() {
+	      try {
+	        const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+	        if (stored) return normalizeLanguage(stored);
+	      } catch {}
+	      const navLang = String(navigator.language || '').toLowerCase();
+	      if (navLang.startsWith('zh')) return 'zh';
+	      return 'en';
+	    }
+
+	    let currentLang = detectLanguage();
+
+	    function t(key, vars) {
+	      const dict = I18N[currentLang] || I18N.zh;
+	      const template = dict[key] || I18N.zh[key] || String(key);
+	      if (!vars) return template;
+	      return template.replace(/\{(\w+)\}/g, (_, name) => {
+	        return vars[name] == null ? '' : String(vars[name]);
+	      });
+	    }
+
+	    function getCategoryConfig() {
+	      return CATEGORY_CONFIG_BY_LANG[currentLang] || CATEGORY_CONFIG_BY_LANG.zh;
+	    }
+
+	    function getDefaultSiteNamePart() {
+	      return (I18N[currentLang] || I18N.zh).siteNameDefault;
+	    }
+
+	    let currentSiteNamePart = null;
+	    let currentSiteNameIsDefault = true;
+
+	    function parseSiteNamePartFromTitle(value) {
+	      const raw = String(value || '').trim();
+	      const prefix = `${APP_PREFIX} - `;
+	      if (!raw) return null;
+	      if (raw.toLowerCase().startsWith(prefix.toLowerCase())) {
+	        const tail = raw.slice(prefix.length).trim();
+	        return tail || null;
+	      }
+	      return raw || null;
+	    }
+
+	    function ensureSiteNamePartInitialized() {
+	      if (currentSiteNamePart) return;
+	      const fromTitle = parseSiteNamePartFromTitle(document.title);
+	      currentSiteNamePart = fromTitle || getDefaultSiteNamePart();
+	      currentSiteNameIsDefault = (
+	        currentSiteNamePart === I18N.zh.siteNameDefault ||
+	        currentSiteNamePart === I18N.en.siteNameDefault
+	      );
+	    }
+
+	    function applyAppTitle(siteNamePart) {
+	      const suffix = String(siteNamePart || '').trim() || getDefaultSiteNamePart();
+	      try { document.title = suffix; } catch {}
+	      if (typeof brandTextEl !== 'undefined' && brandTextEl) {
+	        brandTextEl.textContent = suffix;
+	      }
+	      if (typeof tauriInvoke === 'function') {
+	        tauriInvoke('set_app_window_title', { site_name: suffix }).catch(() => {});
+	      }
+	    }
+
+		    function setLanguage(lang, persist) {
+		      currentLang = normalizeLanguage(lang);
+		      if (persist) {
+		        persistAppConfigPatch({ language: currentLang });
+		      }
+
+	      try {
+	        document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+	      } catch {}
+
+	      ensureSiteNamePartInitialized();
+	      if (currentSiteNameIsDefault) {
+	        currentSiteNamePart = getDefaultSiteNamePart();
+	      }
+	      applyAppTitle(currentSiteNamePart);
+	      if (typeof updateCurrentSourceLabel === 'function') updateCurrentSourceLabel();
+
+	      if (typeof openMenuBtn !== 'undefined' && openMenuBtn) {
+	        openMenuBtn.title = t('openTitle');
+	      }
+	      if (typeof openMenuBtnLabel !== 'undefined' && openMenuBtnLabel) {
+	        openMenuBtnLabel.textContent = t('open');
+	      }
+	      if (typeof openMenuDropdown !== 'undefined' && openMenuDropdown) {
+	        openMenuDropdown.setAttribute('aria-label', t('openMenuLabel'));
+	      }
+	      if (typeof openFolderBtn !== 'undefined' && openFolderBtn) {
+	        openFolderBtn.textContent = t('openFolder');
+	      }
+	      if (typeof openFileBtn !== 'undefined' && openFileBtn) {
+	        openFileBtn.textContent = t('openFile');
+	      }
+	      if (typeof treeTitleEl !== 'undefined' && treeTitleEl) {
+	        treeTitleEl.textContent = t('treeTitle');
+	      }
+	      if (typeof treeSearchInput !== 'undefined' && treeSearchInput) {
+	        treeSearchInput.placeholder = t('searchFiles');
+	      }
+	      if (typeof mainSidebarToggle !== 'undefined' && mainSidebarToggle) {
+	        mainSidebarToggle.title = t('toggleSidebar');
+	      }
+	      if (typeof prevBtn !== 'undefined' && prevBtn) {
+	        prevBtn.title = t('prevItem');
+	      }
+	      if (typeof nextBtn !== 'undefined' && nextBtn) {
+	        nextBtn.title = t('nextItem');
+	      }
+	      if (typeof toggleFullscreenBtn !== 'undefined' && toggleFullscreenBtn) {
+	        toggleFullscreenBtn.setAttribute('aria-label', t('fullscreen'));
+	      }
+	      if (typeof singleImage !== 'undefined' && singleImage) {
+	        singleImage.alt = t('currentImageAlt');
+	      }
+	      if (typeof imageHelpTextEl !== 'undefined' && imageHelpTextEl) {
+	        imageHelpTextEl.textContent = t('imageHelp');
+	      }
+
+		      if (typeof langToggleBtn !== 'undefined' && langToggleBtn) {
+		        const nextLabel = currentLang === 'zh' ? t('languageToggleToEn') : t('languageToggleToZh');
+		        langToggleBtn.textContent = nextLabel;
+		        langToggleBtn.title = t('languageLabel');
+		        langToggleBtn.setAttribute('aria-label', t('languageLabel'));
+		      }
+
+		      if (typeof aboutBtn !== 'undefined' && aboutBtn) {
+		        aboutBtn.textContent = t('about');
+		        aboutBtn.title = t('about');
+		        aboutBtn.setAttribute('aria-label', t('about'));
+		      }
+
+			      if (typeof updateAboutModalLanguage === 'function') updateAboutModalLanguage();
+			      if (typeof updateScanOverlayLanguage === 'function') updateScanOverlayLanguage();
+			    }
 
 	    const CATEGORY_EXTENSIONS = {
 	      images: new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']),
@@ -375,22 +828,37 @@
     let resetDrawioPanPosition = null;
     let disposeMarpitNavigation = null;
 	    let disposePdfViewer = null;
-	    let disposeWordToc = null;
-	    let currentWordHeadingStyles = null;
-		    let disposeCategoryMoreMenu = null;
-		    const DOCX_STYLE_PREFIX = 'docx';
-		    const localFilesByPath = new Map();
+		    let disposeWordToc = null;
+		    let currentWordHeadingStyles = null;
+				    let disposeCategoryMoreMenu = null;
+				    let aboutModalInstance = null;
+				    let persistedAppConfig = { language: null, fontSizePx: null };
+				    let persistedAppConfigDirty = { language: false, fontSizePx: false };
+				    let appConfigSaveTimer = null;
+				    let scanOverlayInstance = null;
+				    let activeScanId = null;
+				    let scanProgressState = { dirs: 0, files: 0, matched: 0, path: '' };
+				    let scanProgressUnlisten = null;
+				    const DOCX_STYLE_PREFIX = 'docx';
+			    const localFilesByPath = new Map();
 		    const diskFilePathsByVirtualPath = new Map();
 		    const localObjectUrlsByPath = new Map();
-		    const tauriCore = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core : null;
-		    const tauriInvoke = tauriCore && typeof tauriCore.invoke === 'function' ? tauriCore.invoke : null;
-		    const tauriConvertFileSrc = tauriCore && typeof tauriCore.convertFileSrc === 'function' ? tauriCore.convertFileSrc : null;
-		    let currentSourceLabel = '未选择目录';
+			    const tauriCore = window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__.core : null;
+			    const tauriInvoke = tauriCore && typeof tauriCore.invoke === 'function' ? tauriCore.invoke : null;
+			    const tauriConvertFileSrc = tauriCore && typeof tauriCore.convertFileSrc === 'function' ? tauriCore.convertFileSrc : null;
+			    const tauriEvent = window.__TAURI__ && window.__TAURI__.event ? window.__TAURI__.event : null;
+			    let currentSourceKind = 'none';
+			    let currentSourceName = '';
+		    let currentSourceLabel = '';
 		    let hasUserSelection = false;
 
     // Elements
-    const categoryFiltersEl = document.getElementById('categoryFilters');
-    const treeContainer = document.getElementById('treeContainer');
+	    const brandTextEl = document.getElementById('brandText');
+	    const categoryFiltersEl = document.getElementById('categoryFilters');
+	    const langToggleBtn = document.getElementById('langToggleBtn');
+	    const aboutBtn = document.getElementById('aboutBtn');
+	    const treeContainer = document.getElementById('treeContainer');
+    const treeTitleEl = document.getElementById('treeTitle');
     const treeSearchInput = document.getElementById('treeSearchInput');
     const treeSearchClear = document.getElementById('treeSearchClear');
     const treeMetaEl = document.getElementById('treeMeta');
@@ -398,20 +866,395 @@
     const previewSubtitleEl = document.getElementById('previewSubtitle');
     const docPreviewEl = document.getElementById('docPreview');
     const imagePreviewWrapper = document.getElementById('imagePreviewWrapper');
+    const imageHelpTextEl = document.getElementById('imageHelpText');
 	    const zoomContainer = document.getElementById('zoomContainer');
 	    const singleImage = document.getElementById('singleImage');
 	    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
 	    const openMenuBtn = document.getElementById('openMenuBtn');
+	    const openMenuBtnLabel = document.getElementById('openMenuBtnLabel');
 	    const openMenuDropdown = document.getElementById('openMenuDropdown');
 	    const openFileBtn = document.getElementById('openFileBtn');
 	    const openFolderBtn = document.getElementById('openFolderBtn');
 	    const openFileInput = document.getElementById('openFileInput');
 	    const openFolderInput = document.getElementById('openFolderInput');
 
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const previewCardEl = document.querySelector('.preview');
-    const rootStyle = document.documentElement.style;
+		    const prevBtn = document.getElementById('prevBtn');
+		    const nextBtn = document.getElementById('nextBtn');
+		    const previewCardEl = document.querySelector('.preview');
+		    const rootStyle = document.documentElement.style;
+
+		    const APP_CONFIG_SAVE_DEBOUNCE_MS = 200;
+		    const FONT_SIZE_STORAGE_KEY = 'ui.fontSizePx';
+		    const MIN_FONT_SIZE_PX = 14;
+		    const MAX_FONT_SIZE_PX = 28;
+
+		    function clampFontSizePx(value) {
+		      const numeric = Math.round(Number(value));
+		      if (!Number.isFinite(numeric)) return null;
+		      return Math.min(Math.max(numeric, MIN_FONT_SIZE_PX), MAX_FONT_SIZE_PX);
+		    }
+
+		    function applyFontSizePx(value) {
+		      const fontPx = clampFontSizePx(value);
+		      if (!fontPx) return;
+		      try {
+		        document.documentElement.style.setProperty('--ui-font-size', `${fontPx}px`);
+		        window.__UI_FONT_SIZE_PX__ = fontPx;
+		      } catch {}
+		    }
+
+		    function mergePersistedAppConfig(patch) {
+		      if (!patch || typeof patch !== 'object') return;
+
+		      if (typeof patch.language === 'string' && patch.language.trim()) {
+		        persistedAppConfig.language = normalizeLanguage(patch.language);
+		      }
+		      if (patch.fontSizePx != null) {
+		        const fontPx = clampFontSizePx(patch.fontSizePx);
+		        if (fontPx) persistedAppConfig.fontSizePx = fontPx;
+		      }
+		    }
+
+		    function scheduleSavePersistedAppConfig() {
+		      if (!tauriInvoke) return;
+		      if (appConfigSaveTimer) {
+		        clearTimeout(appConfigSaveTimer);
+		        appConfigSaveTimer = null;
+		      }
+		      appConfigSaveTimer = setTimeout(() => {
+		        appConfigSaveTimer = null;
+		        const snapshot = Object.assign({}, persistedAppConfig);
+		        tauriInvoke('save_app_config', { config: snapshot }).catch((error) => {
+		          console.error('save_app_config failed', error);
+		        });
+		      }, APP_CONFIG_SAVE_DEBOUNCE_MS);
+		    }
+
+		    function persistAppConfigPatch(patch) {
+		      if (!patch || typeof patch !== 'object') return;
+		      if (Object.prototype.hasOwnProperty.call(patch, 'language')) {
+		        persistedAppConfigDirty.language = true;
+		      }
+		      if (Object.prototype.hasOwnProperty.call(patch, 'fontSizePx')) {
+		        persistedAppConfigDirty.fontSizePx = true;
+		      }
+		      mergePersistedAppConfig(patch);
+
+		      if (persistedAppConfig.language) {
+		        try { localStorage.setItem(LANGUAGE_STORAGE_KEY, persistedAppConfig.language); } catch {}
+		      }
+		      if (persistedAppConfig.fontSizePx) {
+		        try { localStorage.setItem(FONT_SIZE_STORAGE_KEY, String(persistedAppConfig.fontSizePx)); } catch {}
+		      }
+
+		      scheduleSavePersistedAppConfig();
+		    }
+
+		    async function initAppConfigFromDisk() {
+		      if (!tauriInvoke) return;
+		      let loaded = null;
+		      try {
+		        loaded = await tauriInvoke('load_app_config');
+		      } catch (error) {
+		        console.error('load_app_config failed', error);
+		        return;
+		      }
+		      if (!loaded || typeof loaded !== 'object') return;
+
+		      if (!persistedAppConfigDirty.language && typeof loaded.language === 'string') {
+		        mergePersistedAppConfig({ language: loaded.language });
+		      }
+		      if (!persistedAppConfigDirty.fontSizePx && loaded.fontSizePx != null) {
+		        mergePersistedAppConfig({ fontSizePx: loaded.fontSizePx });
+		      }
+
+		      if (persistedAppConfig.language) {
+		        try { localStorage.setItem(LANGUAGE_STORAGE_KEY, persistedAppConfig.language); } catch {}
+		      }
+		      if (persistedAppConfig.fontSizePx) {
+		        try { localStorage.setItem(FONT_SIZE_STORAGE_KEY, String(persistedAppConfig.fontSizePx)); } catch {}
+		      }
+
+		      if (!persistedAppConfigDirty.fontSizePx && persistedAppConfig.fontSizePx) {
+		        applyFontSizePx(persistedAppConfig.fontSizePx);
+		      }
+
+		      if (!persistedAppConfigDirty.language && persistedAppConfig.language) {
+		        const nextLang = normalizeLanguage(persistedAppConfig.language);
+		        const changed = nextLang !== currentLang;
+		        setLanguage(nextLang, false);
+		        if (changed) rerenderForLanguageChange();
+		      }
+		    }
+
+		    window.__RUSTREADER_ON_FONT_SIZE_CHANGE__ = (fontPx) => {
+		      const clamped = clampFontSizePx(fontPx);
+		      if (!clamped) return;
+		      persistAppConfigPatch({ fontSizePx: clamped });
+		    };
+
+		    void initAppConfigFromDisk();
+
+		    function generateScanId() {
+		      try {
+		        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		          return crypto.randomUUID();
+		        }
+		      } catch {}
+		      return `scan_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+		    }
+
+		    function ensureScanOverlay() {
+		      if (scanOverlayInstance || !document?.body) return scanOverlayInstance;
+
+		      const overlay = document.createElement('div');
+		      overlay.className = 'xspreadsheet-size-modal';
+		      overlay.setAttribute('aria-hidden', 'true');
+		      overlay.innerHTML = `
+		        <div class="xspreadsheet-size-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="scanOverlayTitle" style="width: min(560px, 100%);">
+		          <div class="xspreadsheet-size-modal__title" id="scanOverlayTitle" data-scan-title>${escapeHtml(t('scanTitle'))}</div>
+		          <div class="scan-progressbar" aria-hidden="true"><div class="scan-progressbar__bar"></div></div>
+		          <div class="text-sm" data-scan-detail style="margin-top: 0.25rem;"></div>
+		          <div class="text-xs text-muted" data-scan-path style="margin-top: 0.25rem; word-break: break-all;"></div>
+		        </div>
+		      `;
+		      document.body.appendChild(overlay);
+
+		      const titleEl = overlay.querySelector('[data-scan-title]');
+		      const detailEl = overlay.querySelector('[data-scan-detail]');
+		      const pathEl = overlay.querySelector('[data-scan-path]');
+
+		      const show = () => {
+		        overlay.classList.add('is-open');
+		        overlay.setAttribute('aria-hidden', 'false');
+		      };
+		      const hide = () => {
+		        overlay.classList.remove('is-open');
+		        overlay.setAttribute('aria-hidden', 'true');
+		      };
+		      const update = () => {
+		        if (titleEl) titleEl.textContent = t('scanTitle');
+		        if (detailEl) {
+		          detailEl.textContent = t('scanDetail', {
+		            dirs: scanProgressState.dirs,
+		            files: scanProgressState.files,
+		            matched: scanProgressState.matched,
+		          });
+		        }
+		        if (pathEl) {
+		          const value = String(scanProgressState.path || '').trim();
+		          pathEl.textContent = value ? t('scanPath', { path: value }) : '';
+		        }
+		      };
+
+		      scanOverlayInstance = { show, hide, update, overlay };
+		      return scanOverlayInstance;
+		    }
+
+		    function showScanOverlay() {
+		      const overlay = scanOverlayInstance || ensureScanOverlay();
+		      if (!overlay) return null;
+		      void ensureScanProgressListener();
+		      activeScanId = generateScanId();
+		      scanProgressState = { dirs: 0, files: 0, matched: 0, path: '' };
+		      overlay.update();
+		      overlay.show();
+		      return activeScanId;
+		    }
+
+		    function hideScanOverlay() {
+		      if (!scanOverlayInstance) return;
+		      scanOverlayInstance.hide();
+		      activeScanId = null;
+		      scanProgressState = { dirs: 0, files: 0, matched: 0, path: '' };
+		    }
+
+		    function updateScanOverlayLanguage() {
+		      if (!scanOverlayInstance || !activeScanId) return;
+		      scanOverlayInstance.update();
+		    }
+
+		    function handleScanProgressEvent(payload) {
+		      if (!scanOverlayInstance || !activeScanId) return;
+		      if (!payload || typeof payload !== 'object') return;
+		      const scanId = payload.scanId ? String(payload.scanId) : null;
+		      if (scanId && scanId !== activeScanId) return;
+
+		      const dirs = Number(payload.scannedDirs);
+		      const files = Number(payload.scannedFiles);
+		      const matched = Number(payload.matchedFiles);
+		      const path = payload.currentPath ? String(payload.currentPath) : '';
+
+		      if (Number.isFinite(dirs) && dirs >= 0) scanProgressState.dirs = Math.max(scanProgressState.dirs, dirs);
+		      if (Number.isFinite(files) && files >= 0) scanProgressState.files = Math.max(scanProgressState.files, files);
+		      if (Number.isFinite(matched) && matched >= 0) scanProgressState.matched = Math.max(scanProgressState.matched, matched);
+		      if (path) scanProgressState.path = path;
+
+		      scanOverlayInstance.update();
+		    }
+
+		    async function ensureScanProgressListener() {
+		      if (!tauriEvent || typeof tauriEvent.listen !== 'function') return;
+		      if (scanProgressUnlisten) return;
+		      try {
+		        scanProgressUnlisten = await tauriEvent.listen('rustreader_scan_progress', (event) => {
+		          handleScanProgressEvent(event?.payload);
+		        });
+		      } catch (error) {
+		        console.error('scan progress listen failed', error);
+		      }
+		    }
+
+		    void ensureScanProgressListener();
+
+		    function ensureAboutModal() {
+		      if (aboutModalInstance || !document?.body) return aboutModalInstance;
+		
+		      const overlay = document.createElement('div');
+	      overlay.className = 'xspreadsheet-size-modal';
+	      overlay.setAttribute('aria-hidden', 'true');
+	      overlay.innerHTML = `
+	        <div class="xspreadsheet-size-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle" style="width: min(520px, 100%);">
+	          <button type="button" class="xspreadsheet-size-modal__close" aria-label="${escapeHtml(t('close'))}" title="${escapeHtml(t('close'))}" data-about-close>
+	            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+	              <line x1="6" y1="6" x2="18" y2="18"></line>
+	              <line x1="6" y1="18" x2="18" y2="6"></line>
+	            </svg>
+	          </button>
+	          <div class="xspreadsheet-size-modal__title" id="aboutModalTitle" data-about-title>${escapeHtml(t('aboutTitle'))}</div>
+	          <div class="flex-col gap-2 text-sm">
+	            <div class="flex-col gap-1">
+	              <div class="text-muted" data-about-label="name">${escapeHtml(t('softwareName'))}</div>
+	              <div id="aboutAppName" style="font-weight: 600; word-break: break-word;"></div>
+	            </div>
+	            <div class="flex-col gap-1">
+	              <div class="text-muted" data-about-label="author">${escapeHtml(t('author'))}</div>
+	              <div id="aboutAuthor" style="word-break: break-word;"></div>
+	            </div>
+	            <div class="flex-col gap-1">
+	              <div class="text-muted" data-about-label="github">${escapeHtml(t('githubUrl'))}</div>
+	              <a id="aboutGithubLink" href="#" target="_blank" rel="noopener noreferrer" style="word-break: break-all;"></a>
+	            </div>
+	          </div>
+	          <div class="xspreadsheet-size-modal__actions">
+	            <button type="button" class="btn btn--primary btn-sm" data-about-ok>${escapeHtml(t('close'))}</button>
+	          </div>
+	        </div>
+	      `;
+	      document.body.appendChild(overlay);
+
+	      const titleEl = overlay.querySelector('[data-about-title]');
+	      const nameLabelEl = overlay.querySelector('[data-about-label="name"]');
+	      const authorLabelEl = overlay.querySelector('[data-about-label="author"]');
+	      const githubLabelEl = overlay.querySelector('[data-about-label="github"]');
+	      const appNameEl = overlay.querySelector('#aboutAppName');
+	      const authorEl = overlay.querySelector('#aboutAuthor');
+	      const githubLinkEl = overlay.querySelector('#aboutGithubLink');
+	      const closeBtn = overlay.querySelector('[data-about-close]');
+	      const okBtn = overlay.querySelector('[data-about-ok]');
+
+	      let lastFocusedElement = null;
+
+	      const updateLanguage = () => {
+	        if (titleEl) titleEl.textContent = t('aboutTitle');
+	        if (nameLabelEl) nameLabelEl.textContent = t('softwareName');
+	        if (authorLabelEl) authorLabelEl.textContent = t('author');
+	        if (githubLabelEl) githubLabelEl.textContent = t('githubUrl');
+	        if (closeBtn) {
+	          closeBtn.setAttribute('aria-label', t('close'));
+	          closeBtn.title = t('close');
+	        }
+	        if (okBtn) okBtn.textContent = t('close');
+	        if (appNameEl) appNameEl.textContent = document.title || APP_PREFIX;
+	        if (authorEl) authorEl.textContent = APP_AUTHOR;
+	        if (githubLinkEl) {
+	          githubLinkEl.textContent = APP_GITHUB_URL;
+	          githubLinkEl.href = APP_GITHUB_URL;
+	        }
+	      };
+
+	      const hide = () => {
+	        overlay.classList.remove('is-open');
+	        overlay.setAttribute('aria-hidden', 'true');
+	        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+	          lastFocusedElement.focus();
+	        }
+	      };
+
+	      const show = () => {
+	        lastFocusedElement = document.activeElement;
+	        overlay.classList.add('is-open');
+	        overlay.setAttribute('aria-hidden', 'false');
+	        updateLanguage();
+	        requestAnimationFrame(() => {
+	          if (okBtn && typeof okBtn.focus === 'function') okBtn.focus();
+	          else if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+	        });
+	      };
+
+	      closeBtn?.addEventListener('click', hide);
+	      okBtn?.addEventListener('click', hide);
+	      overlay.addEventListener('click', (evt) => {
+	        if (evt.target === overlay) hide();
+	      });
+	      overlay.addEventListener('keydown', (evt) => {
+	        if (evt.key === 'Escape') {
+	          evt.preventDefault();
+	          hide();
+	        }
+	      });
+
+	      aboutModalInstance = {
+	        open: show,
+	        close: hide,
+	        updateLanguage,
+	      };
+	      return aboutModalInstance;
+	    }
+
+	    function updateAboutModalLanguage() {
+	      if (!aboutModalInstance) return;
+	      if (typeof aboutModalInstance.updateLanguage === 'function') aboutModalInstance.updateLanguage();
+	    }
+
+	    function openAboutModal() {
+	      const modal = aboutModalInstance || ensureAboutModal();
+	      if (!modal || typeof modal.open !== 'function') return;
+	      modal.open();
+	    }
+
+	    function rerenderForLanguageChange() {
+	      updateCurrentSourceLabel();
+	      renderCategoryFilters();
+	      renderTree();
+
+      if (filteredFiles.length > 0) {
+        setCurrentFile(currentIndex);
+        return;
+      }
+
+      if (!hasUserSelection) {
+        if (previewTitleEl) previewTitleEl.textContent = t('selectFolder');
+        if (previewSubtitleEl) previewSubtitleEl.textContent = t('selectFolderHint');
+        showPreviewPlaceholder(t('selectFolderHint'));
+      } else {
+        showPreviewPlaceholder(t('emptyNoPreviewable'));
+      }
+    }
+
+	    if (langToggleBtn) {
+	      langToggleBtn.addEventListener('click', () => {
+	        const nextLang = currentLang === 'zh' ? 'en' : 'zh';
+	        setLanguage(nextLang, true);
+	        rerenderForLanguageChange();
+	      });
+	    }
+	    if (aboutBtn) {
+	      aboutBtn.addEventListener('click', () => {
+	        openAboutModal();
+	      });
+	    }
+	    setLanguage(currentLang, false);
 
     // Updated Class Names for Icons (no 'file-' prefix as per CSS)
     const FILE_TYPE_ICON_MAP = {
@@ -434,14 +1277,14 @@
 
     const scriptLoadingCache = new Map();
     function loadExternalScript(src) {
-      if (!src) return Promise.reject(new Error('缺少脚本地址'));
+      if (!src) return Promise.reject(new Error(t('missingScriptSrc')));
       if (scriptLoadingCache.has(src)) return scriptLoadingCache.get(src);
       const promise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = src;
         script.async = true;
         script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`脚本加载失败: ${src}`));
+        script.onerror = () => reject(new Error(t('scriptLoadFailed', { src })));
         document.head.appendChild(script);
       });
       scriptLoadingCache.set(src, promise);
@@ -458,7 +1301,7 @@
       }
       if (!pdfjsReadyPromise) {
         pdfjsReadyPromise = loadExternalScript(PDFJS_SRC).then(() => {
-          if (!window.pdfjsLib) throw new Error('PDF.js 加载失败');
+          if (!window.pdfjsLib) throw new Error(t('pdfJsLoadFailed'));
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
           return window.pdfjsLib;
         });
@@ -479,8 +1322,9 @@
       return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     function getCategoryLabel(type) {
-      if (type === 'all') return '全部';
-      return CATEGORY_CONFIG[type]?.label || type;
+      if (type === 'all') return t('all');
+      const categoryConfig = getCategoryConfig();
+      return categoryConfig[type]?.label || type;
     }
     function compareNames(a, b) {
       if (NAME_COLLATOR) return NAME_COLLATOR.compare(a || '', b || '');
@@ -514,7 +1358,7 @@
         renderCategoryFilters();
         renderTree();
         if (filteredFiles.length) setCurrentFile(0);
-        else showPreviewPlaceholder('当前筛选没有匹配文件。');
+        else showPreviewPlaceholder(t('filterNoMatch'));
         
         if (window.innerWidth < 768) {
           document.getElementById('categoryFilters').classList.remove('is-open');
@@ -545,8 +1389,8 @@
       moreBtn.type = 'button';
       moreBtn.className = 'nav__item nav__item--icon';
       if (activeInMore) moreBtn.classList.add('nav__item--active');
-      moreBtn.title = '更多';
-      moreBtn.setAttribute('aria-label', '更多筛选');
+      moreBtn.title = t('more');
+      moreBtn.setAttribute('aria-label', t('moreFilters'));
       moreBtn.setAttribute('aria-haspopup', 'menu');
       moreBtn.setAttribute('aria-expanded', 'false');
       moreBtn.innerHTML = `
@@ -559,7 +1403,7 @@
       const dropdown = document.createElement('div');
       dropdown.className = 'nav__dropdown';
       dropdown.setAttribute('role', 'menu');
-      dropdown.setAttribute('aria-label', '更多筛选');
+      dropdown.setAttribute('aria-label', t('moreFilters'));
 
       moreTypes.forEach((type) => {
         const count = type === 'all' ? totals.all : (totals[type] || 0);
@@ -629,13 +1473,29 @@
 	      return svg;
 	    }
 
-	    function getTreeRootLabel() {
-	      const label = currentSourceLabel ? String(currentSourceLabel) : '';
-	      if (label.startsWith('本地: ')) {
-	        const trimmed = label.slice('本地: '.length).trim();
-	        return trimmed || '已打开目录';
+	    function computeCurrentSourceLabel() {
+	      if (currentSourceKind === 'local') {
+	        const label = String(currentSourceName || '').trim();
+	        return label ? `${t('localPrefix')}${label}` : t('localFolder');
 	      }
-	      return label || '当前目录';
+	      if (currentSourceKind === 'none') {
+	        return t('noFolderSelected');
+	      }
+	      return String(currentSourceName || '').trim() || t('currentDirectory');
+	    }
+
+	    function updateCurrentSourceLabel() {
+	      currentSourceLabel = computeCurrentSourceLabel();
+	    }
+
+	    function getTreeRootLabel() {
+	      if (currentSourceKind === 'local') {
+	        return String(currentSourceName || '').trim() || t('openedDirectory');
+	      }
+	      if (currentSourceKind === 'none') {
+	        return t('currentDirectory');
+	      }
+	      return String(currentSourceName || '').trim() || t('currentDirectory');
 	    }
 
 	    function createDirectoryNode(node, level = 0) {
@@ -791,11 +1651,11 @@
 		        emptyWrap.style.justifyContent = 'center';
 
 			        const emptyText = document.createElement('div');
-			        let emptyMessage = '无匹配文件';
+			        let emptyMessage = t('emptyNoMatch');
 			        if (!hasSelection) {
-			          emptyMessage = '请点击上方“打开”选择文件夹';
+			          emptyMessage = t('emptyClickOpenFolder');
 			        } else if (!hasAnyPreviewableFiles) {
-			          emptyMessage = '所选内容中没有支持预览的文件。';
+			          emptyMessage = t('emptyNoPreviewable');
 			        }
 			        emptyText.textContent = emptyMessage;
 			        emptyWrap.appendChild(emptyText);
@@ -804,7 +1664,7 @@
 			          const openBtn = document.createElement('button');
 			          openBtn.type = 'button';
 			          openBtn.className = 'btn btn--primary btn-sm';
-			          openBtn.textContent = '打开文件夹...';
+			          openBtn.textContent = t('openFolder');
 		          openBtn.addEventListener('click', () => {
 		            void requestOpenFolder();
 		          });
@@ -814,9 +1674,9 @@
 			        treeContainer.appendChild(emptyWrap);
 			        if (treeMetaEl) {
 			          const prefix = currentSourceLabel ? `${currentSourceLabel} · ` : '';
-			          if (!hasSelection) treeMetaEl.textContent = currentSourceLabel || '未选择目录';
-			          else if (!hasAnyPreviewableFiles) treeMetaEl.textContent = `${prefix}没有可预览文件`;
-			          else treeMetaEl.textContent = `${prefix}无匹配文件`;
+			          if (!hasSelection) treeMetaEl.textContent = currentSourceLabel || t('noFolderSelected');
+			          else if (!hasAnyPreviewableFiles) treeMetaEl.textContent = `${prefix}${t('treeMetaNoPreviewable')}`;
+			          else treeMetaEl.textContent = `${prefix}${t('treeMetaNoMatch')}`;
 			        }
 			        return;
 			      }
@@ -829,7 +1689,7 @@
       updateTreeSelection();
 	      if (treeMetaEl) {
 	        const prefix = currentSourceLabel ? `${currentSourceLabel} · ` : '';
-	        treeMetaEl.textContent = `${prefix}匹配 ${filteredFiles.length} 个文件`;
+	        treeMetaEl.textContent = `${prefix}${t('treeMetaMatchCount', { count: filteredFiles.length })}`;
 	      }
 	    }
 
@@ -921,11 +1781,11 @@
          sidebarHtml = `
            <aside id="mdSidebar" class="markdown-sidebar collapsed"> <!-- Add 'collapsed' class -->
              <div class="markdown-sidebar__header">
-               <span>目录</span>
+               <span>${escapeHtml(t('toc'))}</span>
                <button id="closeMdSidebarBtn" class="btn btn--ghost btn-sm" style="padding: 4px;">✕</button>
              </div>
              <div class="markdown-sidebar__search">
-               <input type="text" id="mdTocSearch" class="input" placeholder="搜索目录..." style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
+               <input type="text" id="mdTocSearch" class="input" placeholder="${escapeHtml(t('searchToc'))}" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;">
              </div>
              <nav id="mdTocList" class="markdown-toc-list">
                ${listItems}
@@ -934,7 +1794,7 @@
          `;
          
          toggleBtnHtml = `
-           <button id="mdSidebarToggle" class="markdown-floating-toggle" title="显示目录"> <!-- Remove 'hidden' class -->
+           <button id="mdSidebarToggle" class="markdown-floating-toggle" title="${escapeHtml(t('showToc'))}"> <!-- Remove 'hidden' class -->
              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
            </button>
          `;
@@ -1001,7 +1861,7 @@
        cleanupWordToc();
        cleanupExcelPreview();
 
-       showDocStatus('加载中...');
+       showDocStatus(t('loading'));
        try {
           if (type === 'markdown') await previewMarkdown(path);
           else if (type === 'text') await previewText(path);
@@ -1014,9 +1874,9 @@
           else if (type === 'word') await previewWord(path);
           else if (type === 'excel') await previewExcel(path);
           else if (type === 'slides') await previewSlides(path);
-          else showDocStatus('暂不支持预览');
+          else showDocStatus(t('unsupportedPreview'));
        } catch (e) {
-          showDocStatus('加载失败: ' + e.message);
+          showDocStatus(t('loadFailed', { message: e?.message || String(e) }));
        }
     }
 
@@ -1299,21 +2159,21 @@
       overlay.setAttribute('aria-hidden', 'true');
       overlay.innerHTML = `
         <div class="xspreadsheet-size-modal__dialog" role="dialog" aria-modal="true">
-          <button type="button" class="xspreadsheet-size-modal__close" aria-label="关闭" data-size-close>
+          <button type="button" class="xspreadsheet-size-modal__close" aria-label="${t('close')}" data-size-close>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <line x1="6" y1="6" x2="18" y2="18"></line>
               <line x1="6" y1="18" x2="18" y2="6"></line>
             </svg>
           </button>
-          <div class="xspreadsheet-size-modal__title" data-size-title>统一设置行高</div>
+          <div class="xspreadsheet-size-modal__title" data-size-title>${t('rowHeightTitle')}</div>
           <label class="xspreadsheet-size-modal__label">
-            <span data-size-label>行高 (像素)</span>
+            <span data-size-label>${t('rowHeightPx')}</span>
             <input type="number" min="1" step="1" inputmode="decimal" class="input xspreadsheet-size-modal__input" data-size-input />
           </label>
           <div class="xspreadsheet-size-modal__error" data-size-error></div>
           <div class="xspreadsheet-size-modal__actions">
-            <button type="button" class="btn btn--ghost btn-sm" data-size-cancel>取消</button>
-            <button type="button" class="btn btn--primary btn-sm" data-size-confirm>确定</button>
+            <button type="button" class="btn btn--ghost btn-sm" data-size-cancel>${t('cancel')}</button>
+            <button type="button" class="btn btn--primary btn-sm" data-size-confirm>${t('confirm')}</button>
           </div>
         </div>
       `;
@@ -1345,8 +2205,8 @@
         overlay.classList.add('is-open');
         overlay.setAttribute('aria-hidden', 'false');
         const isRow = kind === 'row';
-        titleEl.textContent = isRow ? '统一设置行高' : '统一设置列宽';
-        labelEl.textContent = isRow ? '行高 (像素)' : '列宽 (像素)';
+        titleEl.textContent = isRow ? t('rowHeightTitle') : t('colWidthTitle');
+        labelEl.textContent = isRow ? t('rowHeightPx') : t('colWidthPx');
         const fallback = SIZE_MODAL_DEFAULTS[kind] || 10;
         const value = Number.isFinite(defaultValue) ? defaultValue : fallback;
         inputEl.value = value;
@@ -1360,7 +2220,7 @@
       const handleConfirm = () => {
         const numeric = Number(inputEl.value);
         if (!Number.isFinite(numeric) || numeric <= 0) {
-          errorEl.textContent = '请输入有效的正数值';
+          errorEl.textContent = t('invalidPositiveNumber');
           inputEl.focus();
           inputEl.select();
           return;
@@ -1416,7 +2276,7 @@
       colorGroup.className = 'x-spreadsheet-toolbar-btns xspreadsheet-custom-color-group';
       const textColorBtn = createColorToolbarButton({
         label: '',
-        title: '设置字体颜色',
+        title: t('setFontColor'),
         icon: TEXT_COLOR_ICON_SVG,
         defaultColor: COLOR_DEFAULTS.text,
         onColorChange: (value) => {
@@ -1426,7 +2286,7 @@
       });
       const fillColorBtn = createColorToolbarButton({
         label: '',
-        title: '设置填充颜色',
+        title: t('setFillColor'),
         icon: FILL_COLOR_ICON_SVG,
         defaultColor: COLOR_DEFAULTS.fill,
         onColorChange: (value) => {
@@ -1440,8 +2300,8 @@
       group.className = 'x-spreadsheet-toolbar-btns xspreadsheet-custom-sizing-group';
 
       const rowBtn = createCustomToolbarButton({
-        label: '行高',
-        title: '统一设置所有行高',
+        label: t('rowHeight'),
+        title: t('setAllRowHeights'),
         icon: ROW_ICON_SVG,
         className: 'custom-row-height-btn',
         onClick: () => {
@@ -1457,8 +2317,8 @@
       });
 
       const colBtn = createCustomToolbarButton({
-        label: '列宽',
-        title: '统一设置所有列宽',
+        label: t('colWidth'),
+        title: t('setAllColWidths'),
         icon: COL_ICON_SVG,
         className: 'custom-col-width-btn',
         onClick: () => {
@@ -1474,24 +2334,24 @@
       });
 
       const autoRowBtn = createCustomToolbarButton({
-        label: '行高自适应',
-        title: '根据内容自动调整行高',
+        label: t('autoRowHeight'),
+        title: t('autoRowHeightTitle'),
         icon: AUTO_ROW_ICON_SVG,
         className: 'custom-auto-row-btn',
         onClick: () => autoFitRows(xInstance),
       });
 
       const autoColBtn = createCustomToolbarButton({
-        label: '列宽自适应',
-        title: '根据内容自动调整列宽',
+        label: t('autoColWidth'),
+        title: t('autoColWidthTitle'),
         icon: AUTO_COL_ICON_SVG,
         className: 'custom-auto-col-btn',
         onClick: () => autoFitColumns(xInstance),
       });
 
       const autoAllBtn = createCustomToolbarButton({
-        label: '一键自适应',
-        title: '自动调整所有行高和列宽',
+        label: t('autoFitAll'),
+        title: t('autoFitAllTitle'),
         icon: AUTO_ALL_ICON_SVG,
         className: 'custom-auto-all-btn',
         onClick: () => autoFitAll(xInstance),
@@ -1844,48 +2704,48 @@
            <div class="pdf-viewer">
              <div class="pdf-viewer__toolbar">
                <div class="pdf-group">
-                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="prev" disabled title="上一页">
+                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="prev" disabled title="${escapeHtml(t('pdfPrev'))}">
                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
                  </button>
                  <span class="pdf-viewer__page-count" id="pdfPageInfo">-- / --</span>
-                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="next" disabled title="下一页">
+                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="next" disabled title="${escapeHtml(t('pdfNext'))}">
                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
                  </button>
                </div>
                <div class="pdf-group">
-                 <input type="number" min="1" id="pdfPageInput" class="pdf-input" placeholder="Go" disabled />
-                 <button class="pdf-btn" data-pdf-action="jump" disabled>跳转</button>
+                 <input type="number" min="1" id="pdfPageInput" class="pdf-input" placeholder="${escapeHtml(t('pdfPageInputPlaceholder'))}" disabled />
+                 <button class="pdf-btn" data-pdf-action="jump" disabled>${escapeHtml(t('pdfJump'))}</button>
                </div>
                <div class="pdf-group">
-                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="zoom-out" disabled title="缩小">
+                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="zoom-out" disabled title="${escapeHtml(t('pdfZoomOut'))}">
                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"></path></svg>
                  </button>
                  <span class="pdf-viewer__zoom" id="pdfZoomLabel">100%</span>
-                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="zoom-in" disabled title="放大">
+                 <button class="pdf-btn pdf-btn--icon" data-pdf-action="zoom-in" disabled title="${escapeHtml(t('pdfZoomIn'))}">
                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                  </button>
-                                <button class="pdf-btn pdf-btn--icon" data-pdf-action="fit" disabled title="适应宽度">
+                                <button class="pdf-btn pdf-btn--icon" data-pdf-action="fit" disabled title="${escapeHtml(t('pdfFitWidth'))}">
                                   <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
                                 </button>
                               </div>
                               <div class="pdf-group">
-                                <button class="pdf-btn pdf-btn--icon" data-pdf-action="toggle-drawer" title="目录">
+                                <button class="pdf-btn pdf-btn--icon" data-pdf-action="toggle-drawer" title="${escapeHtml(t('pdfToc'))}">
                                   <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                                 </button>
                               </div>
                             </div>
-                            <div class="pdf-viewer__pages" id="pdfPages"></div>             <div class="pdf-viewer__status" id="pdfStatus">正在加载 PDF ...</div>
+                            <div class="pdf-viewer__pages" id="pdfPages"></div>             <div class="pdf-viewer__status" id="pdfStatus">${escapeHtml(t('pdfLoading'))}</div>
            </div>
-           <button class="pdf-bookmark-toggle" id="pdfBookmarkToggle" title="查看书签">书签</button>
-           <aside class="pdf-bookmark-drawer" id="pdfBookmarkDrawer" aria-label="PDF 书签列表">
+           <button class="pdf-bookmark-toggle" id="pdfBookmarkToggle" title="${escapeHtml(t('pdfViewBookmarks'))}">${escapeHtml(t('pdfBookmarks'))}</button>
+           <aside class="pdf-bookmark-drawer" id="pdfBookmarkDrawer" aria-label="${escapeHtml(t('pdfBookmarksAria'))}">
             <div class="pdf-bookmark-drawer__header">
-              <h3 class="pdf-bookmark-drawer__title">目录</h3>
-              <button class="pdf-bookmark-drawer__close pdf-btn--icon" id="pdfBookmarkClose" data-pdf-action="close-drawer" title="关闭">
+              <h3 class="pdf-bookmark-drawer__title">${escapeHtml(t('pdfToc'))}</h3>
+              <button class="pdf-bookmark-drawer__close pdf-btn--icon" id="pdfBookmarkClose" data-pdf-action="close-drawer" title="${escapeHtml(t('pdfClose'))}">
                 <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
              <div class="pdf-bookmark-drawer__search">
-               <input type="text" id="pdfBookmarkSearch" class="pdf-input" placeholder="搜索书签..." />
+               <input type="text" id="pdfBookmarkSearch" class="pdf-input" placeholder="${escapeHtml(t('pdfSearchBookmarks'))}" />
              </div>
              <div class="pdf-bookmark-drawer__list" id="pdfBookmarkList"></div>
            </aside>
@@ -1920,7 +2780,7 @@
          }
 	       };
 
-	       setStatus('正在加载 PDF ...');
+		       setStatus(t('pdfLoading'));
 	       const pdfUrl = resolveResourceUrl(path);
 	       const isLocalPdf = Boolean(getLocalFile(path));
 	       let loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
@@ -2006,7 +2866,7 @@
          const ctx = canvas.getContext('2d');
          const label = document.createElement('div');
          label.className = 'pdf-page__label';
-         label.textContent = `第 ${pageNumber} 页`;
+	         label.textContent = t('pdfPageLabel', { page: pageNumber });
          wrapper.appendChild(canvas);
          wrapper.appendChild(label);
          pagesContainer.appendChild(wrapper);
@@ -2028,9 +2888,9 @@
          bookmarkDrawerVisible = visible;
          if (bookmarkDrawer) {
            bookmarkDrawer.classList.toggle('open', visible);
-           if (visible && bookmarkLoading && bookmarkListContainer) {
-             bookmarkListContainer.innerHTML = '<div class="pdf-loading-spinner"></div><div style="text-align:center;color:#94a3b8;font-size:0.875rem;margin-top:0.5rem;">加载书签中...</div>';
-           }
+	           if (visible && bookmarkLoading && bookmarkListContainer) {
+	             bookmarkListContainer.innerHTML = `<div class="pdf-loading-spinner"></div><div style="text-align:center;color:#94a3b8;font-size:0.875rem;margin-top:0.5rem;">${escapeHtml(t('pdfLoadingBookmarks'))}</div>`;
+	           }
          }
          if (!visible && bookmarkSearchInput) {
            bookmarkSearchInput.value = '';
@@ -2044,11 +2904,11 @@
          const dataSource = normalized
            ? pdfBookmarks.filter(bm => bm.title.toLowerCase().includes(normalized))
            : pdfBookmarks;
-         if (!dataSource.length) {
-           const message = pdfBookmarks.length ? '没有匹配的书签' : '暂无书签';
-           bookmarkListContainer.innerHTML = `<div class="pdf-bookmark-empty">${message}</div>`;
-           return;
-         }
+	         if (!dataSource.length) {
+	           const message = pdfBookmarks.length ? t('pdfNoMatchingBookmarks') : t('pdfNoBookmarks');
+	           bookmarkListContainer.innerHTML = `<div class="pdf-bookmark-empty">${escapeHtml(message)}</div>`;
+	           return;
+	         }
          bookmarkListContainer.innerHTML = '';
          dataSource.forEach((bookmark, index) => {
            const item = document.createElement('button');
@@ -2080,8 +2940,8 @@
        const collectBookmarks = async (outlineItems) => {
          const results = [];
          if (!Array.isArray(outlineItems)) return results;
-         for (const item of outlineItems) {
-           const title = (item?.title || '').trim() || '未命名书签';
+	         for (const item of outlineItems) {
+	           const title = (item?.title || '').trim() || t('pdfUntitledBookmark');
            let page = null;
            if (item.dest) page = await resolveDestinationPage(item.dest);
            results.push({ title, page });
@@ -2109,7 +2969,7 @@
           entry.canvas.width = Math.floor(viewport.width * outputScale);
           entry.canvas.height = Math.floor(viewport.height * outputScale);
           entry.canvas.style.width = `${viewport.width}px`;
-          setStatus(`渲染第 ${pageNumber} / ${totalPages} 页...`);
+	          setStatus(t('pdfRenderStatus', { page: pageNumber, total: totalPages }));
           try {
             const renderContext = {
               canvasContext: entry.ctx,
@@ -2192,8 +3052,8 @@
 	       let loadError = null;
 	       for (let attempt = 0; attempt < (isLocalPdf ? 1 : 2); attempt++) {
 	         try {
-	           if (attempt === 1) {
-	             setStatus('PDF 加载失败，正在重试...');
+		           if (attempt === 1) {
+		             setStatus(t('pdfLoadFailedRetry'));
 	             try {
 	               if (loadingTask && typeof loadingTask.destroy === 'function') loadingTask.destroy();
              } catch {}
@@ -2223,17 +3083,17 @@
            setStatus('');
            endBookmarkLoading(false);
            cleanupPdfViewer();
-           showDocStatus(`PDF 加载失败: ${error?.message || '未知错误'}`);
-           return;
-         }
-       }
+	           showDocStatus(t('pdfLoadFailed', { message: error?.message || t('unknownError') }));
+	           return;
+	         }
+	       }
        if (!pdfDoc) {
          setStatus('');
          endBookmarkLoading(false);
          cleanupPdfViewer();
-         showDocStatus(`PDF 加载失败: ${loadError?.message || '未知错误'}`);
-         return;
-       }
+	         showDocStatus(t('pdfLoadFailed', { message: loadError?.message || t('unknownError') }));
+	         return;
+	       }
        totalPages = pdfDoc.numPages;
        pageInfoEl.textContent = `1 / ${totalPages}`;
        pageInput.disabled = false;
@@ -2496,20 +3356,20 @@
       const toggleBtn = document.createElement('button');
       toggleBtn.type = 'button';
       toggleBtn.className = 'word-floating-toggle';
-      toggleBtn.title = '显示目录';
+      toggleBtn.title = t('wordShowToc');
       toggleBtn.innerHTML = toggleIcon;
 
       const panel = document.createElement('aside');
       panel.className = 'word-toc-panel';
       panel.innerHTML = `
         <div class="word-toc__header">
-          <span>标题目录</span>
-          <button type="button" class="word-toc__close" aria-label="关闭目录">${closeIcon}</button>
+          <span>${escapeHtml(t('wordTocTitle'))}</span>
+          <button type="button" class="word-toc__close" aria-label="${escapeHtml(t('wordCloseToc'))}" title="${escapeHtml(t('wordCloseToc'))}">${closeIcon}</button>
         </div>
         <div class="word-toc__search">
-          <input type="text" class="input" placeholder="搜索标题..." />
+          <input type="text" class="input" placeholder="${escapeHtml(t('wordSearchHeadings'))}" />
         </div>
-        <div class="word-toc__list" role="navigation" aria-label="Word 标题目录"></div>
+        <div class="word-toc__list" role="navigation" aria-label="${escapeHtml(t('wordTocAria'))}"></div>
       `;
 
       docPreviewEl.appendChild(toggleBtn);
@@ -2532,8 +3392,8 @@
         if (!listEl) return;
         listEl.innerHTML = '';
         if (!items.length) {
-          const message = hasHeadings && isFiltered ? '没有匹配的标题' : '暂无可用标题';
-          listEl.innerHTML = `<div class="word-toc__empty">${message}</div>`;
+          const message = hasHeadings && isFiltered ? t('wordNoMatchingHeadings') : t('wordNoHeadings');
+          listEl.innerHTML = `<div class="word-toc__empty">${escapeHtml(message)}</div>`;
           return;
         }
         items.forEach((entry) => {
@@ -2562,7 +3422,7 @@
 
       if (searchInput) {
         searchInput.disabled = !hasHeadings;
-        if (!hasHeadings) searchInput.placeholder = '未检测到标题';
+        if (!hasHeadings) searchInput.placeholder = t('wordNoHeadingsDetected');
         searchInput.addEventListener('input', (event) => {
           const term = event.target.value.trim().toLowerCase();
           if (!term) {
@@ -2850,14 +3710,14 @@
                  <div class="mxgraph" style="width:100%;height:100%;"></div>
                </div>
              </div>
-           </div>
-           <div class="drawio-toolbar">
-             <button class="btn" id="dioZoomIn" title="放大">${iconZoomIn}</button>
-             <button class="btn" id="dioZoomOut" title="缩小">${iconZoomOut}</button>
-             <button class="btn" id="dioFit" title="适应窗口">${iconFit}</button>
-             <button class="btn" id="dioReset" title="重置视图">${iconReset}</button>
-           </div>
-         </div>`;
+	           </div>
+	           <div class="drawio-toolbar">
+	             <button class="btn" id="dioZoomIn" title="${escapeHtml(t('zoomIn'))}">${iconZoomIn}</button>
+	             <button class="btn" id="dioZoomOut" title="${escapeHtml(t('zoomOut'))}">${iconZoomOut}</button>
+	             <button class="btn" id="dioFit" title="${escapeHtml(t('fitWindow'))}">${iconFit}</button>
+	             <button class="btn" id="dioReset" title="${escapeHtml(t('resetView'))}">${iconReset}</button>
+	           </div>
+	         </div>`;
 
        const host = docPreviewEl.querySelector('.drawio-graph-shell .mxgraph');
        host.setAttribute('data-mxgraph', JSON.stringify({xml, zoom:1, nav:false, resize:false, lightbox:0}));
@@ -2902,23 +3762,23 @@
        docPreviewEl.innerHTML = `
          <style>${css}</style>
          <style>${MARPIT_CUSTOM_STYLE}</style>
-         <div class="marpit-preview">
-          <aside class="marpit-toc collapsed" id="marpitToc">
-            <div class="marpit-toc__header">
-              <span>导航目录</span>
-              <button type="button" class="marpit-toc__close" id="closeMarpitToc" aria-label="关闭目录">${closeIcon}</button>
-            </div>
-            <div class="marpit-toc__body">
-              <div class="marpit-toc__search">
-                <input type="text" id="marpitTocSearch" class="input" placeholder="搜索标题..." />
-              </div>
-              <div class="marpit-toc__list" id="marpitTocList"></div>
-            </div>
-          </aside>
-           <button id="marpitTocToggle" type="button" class="marpit-floating-toggle" title="显示目录">${navIcon}</button>
-           <div class="marpit-wrapper">${html}</div>
-         </div>
-       `;
+	         <div class="marpit-preview">
+	          <aside class="marpit-toc collapsed" id="marpitToc">
+	            <div class="marpit-toc__header">
+	              <span>${escapeHtml(t('marpitNav'))}</span>
+	              <button type="button" class="marpit-toc__close" id="closeMarpitToc" aria-label="${escapeHtml(t('close'))}" title="${escapeHtml(t('close'))}">${closeIcon}</button>
+	            </div>
+	            <div class="marpit-toc__body">
+	              <div class="marpit-toc__search">
+	                <input type="text" id="marpitTocSearch" class="input" placeholder="${escapeHtml(t('searchToc'))}" />
+	              </div>
+	              <div class="marpit-toc__list" id="marpitTocList"></div>
+	            </div>
+	          </aside>
+	           <button id="marpitTocToggle" type="button" class="marpit-floating-toggle" title="${escapeHtml(t('showToc'))}">${navIcon}</button>
+	           <div class="marpit-wrapper">${html}</div>
+	         </div>
+	       `;
 
        const marpitWrapper = docPreviewEl.querySelector('.marpit-wrapper');
        const slides = marpitWrapper ? marpitWrapper.querySelectorAll('section') : [];
@@ -2945,12 +3805,12 @@
        };
 
        const tocItems = [];
-       slides.forEach((slide, index) => {
-         const heading = slide.querySelector('h1, h2, h3, h4, h5, h6');
-         const text = heading ? heading.textContent.trim() : '';
-         const label = text || `第 ${index + 1} 页`;
-         const slideId = `marpit-slide-${index}`;
-         slide.setAttribute('id', slideId);
+	       slides.forEach((slide, index) => {
+	         const heading = slide.querySelector('h1, h2, h3, h4, h5, h6');
+	         const text = heading ? heading.textContent.trim() : '';
+	         const label = text || t('pdfPageLabel', { page: index + 1 });
+	         const slideId = `marpit-slide-${index}`;
+	         slide.setAttribute('id', slideId);
          if (!tocList) return;
          const button = document.createElement('button');
          button.type = 'button';
@@ -3142,8 +4002,10 @@
 		      }
 		      if (treeSearchClear) treeSearchClear.classList.add('hidden');
 
-	      const label = scan?.label || scan?.root || '已打开文件夹';
-	      currentSourceLabel = label ? `本地: ${label}` : '本地文件夹';
+	      const label = scan?.label || scan?.root || t('openedFolder');
+	      currentSourceKind = 'local';
+	      currentSourceName = label || '';
+	      updateCurrentSourceLabel();
 
 	      renderCategoryFilters();
 	      renderTree();
@@ -3151,27 +4013,28 @@
 	      if (filteredFiles.length > 0) {
 	        setCurrentFile(0);
 	      } else {
-	        showPreviewPlaceholder('所选内容中没有支持预览的文件。');
+	        showPreviewPlaceholder(t('emptyNoPreviewable'));
 	      }
 	    }
 
-	    async function requestOpenFolder() {
-	      if (!tauriInvoke) {
-	        if (openFolderInput) openFolderInput.click();
-	        return;
-	      }
+		    async function requestOpenFolder() {
+		      if (!tauriInvoke) {
+		        if (openFolderInput) openFolderInput.click();
+		        return;
+		      }
 
-	      let scan = null;
-	      try {
-	        scan = await tauriInvoke('pick_and_scan_folder');
-	      } catch (error) {
-	        console.error(error);
-	        showPreviewPlaceholder(`打开文件夹失败: ${error?.message || String(error)}`);
-	        return;
-	      }
-	      if (!scan) return;
-	      applyScannedFolderSelection(scan);
-	    }
+		      const scan_id = showScanOverlay ? showScanOverlay() : null;
+		      try {
+		        const scan = await tauriInvoke('pick_and_scan_folder', scan_id ? { scan_id } : undefined);
+		        if (!scan) return;
+		        applyScannedFolderSelection(scan);
+		      } catch (error) {
+		        console.error(error);
+		        showPreviewPlaceholder(t('openFolderFailed', { message: error?.message || String(error) }));
+		      } finally {
+		        if (typeof hideScanOverlay === 'function') hideScanOverlay();
+		      }
+		    }
 
 	    function applyLocalFileSelection(fileList, sourceHint) {
 	      const files = Array.from(fileList || []).filter((f) => f && typeof f === 'object');
@@ -3219,8 +4082,10 @@
 		      }
 		      if (treeSearchClear) treeSearchClear.classList.add('hidden');
 
-	      const label = commonRoot || (files.length === 1 ? files[0].name : (sourceHint || '已打开文件'));
-	      currentSourceLabel = label ? `本地: ${label}` : '本地文件';
+	      const label = commonRoot || (files.length === 1 ? files[0].name : (sourceHint || t('openedFiles')));
+	      currentSourceKind = 'local';
+	      currentSourceName = label || '';
+	      updateCurrentSourceLabel();
 
 	      renderCategoryFilters();
 	      renderTree();
@@ -3228,7 +4093,7 @@
 	      if (filteredFiles.length > 0) {
 	        setCurrentFile(0);
 	      } else {
-	        showPreviewPlaceholder('所选内容中没有支持预览的文件。');
+	        showPreviewPlaceholder(t('emptyNoPreviewable'));
 	      }
 	    }
 
@@ -3279,7 +4144,7 @@
 		        openFileInput.addEventListener('change', (event) => {
 		          const input = event.target;
 	          const files = input?.files;
-	          if (files && files.length) applyLocalFileSelection(files, '已打开文件');
+	          if (files && files.length) applyLocalFileSelection(files, t('openedFiles'));
 	          if (input) input.value = '';
 	        });
 	      }
@@ -3288,7 +4153,7 @@
 	        openFolderInput.addEventListener('change', (event) => {
 	          const input = event.target;
 	          const files = input?.files;
-	          if (files && files.length) applyLocalFileSelection(files, '已打开文件夹');
+	          if (files && files.length) applyLocalFileSelection(files, t('openedFolder'));
 	          if (input) input.value = '';
 	        });
 	      }
@@ -3304,7 +4169,9 @@
 		      currentCategory = 'all';
 		      currentIndex = 0;
 		      treeSearchTerm = '';
-		      currentSourceLabel = '未选择目录';
+		      currentSourceKind = 'none';
+		      currentSourceName = '';
+		      updateCurrentSourceLabel();
 		      if (treeSearchInput) {
 		        treeSearchInput.value = '';
 		        treeSearchInput.disabled = true;
@@ -3312,12 +4179,72 @@
 		      if (treeSearchClear) treeSearchClear.classList.add('hidden');
 		      renderCategoryFilters();
 		      renderTree();
-		      if (previewTitleEl) previewTitleEl.textContent = '请选择文件夹';
-		      if (previewSubtitleEl) previewSubtitleEl.textContent = '点击顶部“打开”选择文件夹';
-		      showPreviewPlaceholder('请点击顶部“打开”选择文件夹');
-		    }
-		    initializeApp();
+		      if (previewTitleEl) previewTitleEl.textContent = t('selectFolder');
+		      if (previewSubtitleEl) previewSubtitleEl.textContent = t('selectFolderHint');
+		      showPreviewPlaceholder(t('selectFolderHint'));
+			    }
+			    initializeApp();
+
+					    async function tryOpenFromCli() {
+				      if (!tauriInvoke) return;
+
+				      let targetPath = null;
+			      try {
+			        targetPath = await tauriInvoke('get_cli_open_target');
+			      } catch (error) {
+			        console.error(error);
+			        return;
+			      }
+
+				      if (!targetPath || hasUserSelection) return;
+
+				      const scan_id = showScanOverlay ? showScanOverlay() : null;
+				      try {
+				        const scan = await tauriInvoke(
+				          'scan_path',
+				          scan_id ? { path: String(targetPath), scan_id } : { path: String(targetPath) },
+				        );
+				        if (!scan) return;
+				        applyScannedFolderSelection(scan);
+				      } catch (error) {
+				        console.error(error);
+				        showPreviewPlaceholder(t('openFailed', { message: error?.message || String(error) }));
+				      } finally {
+				        if (typeof hideScanOverlay === 'function') hideScanOverlay();
+				      }
+					    }
+				    void tryApplySiteNameFromCli();
+
+					    function applySiteName(siteName) {
+					      const value = String(siteName || '').trim();
+					      if (!value) return;
 	
-		  </script>
+					      const prefix = `${APP_PREFIX} - `;
+					      const siteNamePart = value.toLowerCase().startsWith(prefix.toLowerCase())
+					        ? value.slice(prefix.length).trim()
+					        : value;
+					      if (!siteNamePart) return;
+	
+					      currentSiteNamePart = siteNamePart;
+					      currentSiteNameIsDefault = (
+					        currentSiteNamePart === I18N.zh.siteNameDefault ||
+					        currentSiteNamePart === I18N.en.siteNameDefault
+					      );
+					      applyAppTitle(currentSiteNamePart);
+					    }
+
+				    async function tryApplySiteNameFromCli() {
+			      if (!tauriInvoke) return;
+
+			      try {
+			        const siteName = await tauriInvoke('get_cli_site_name');
+			        applySiteName(siteName);
+			      } catch (error) {
+			        console.error(error);
+			      }
+				    }
+				    void tryOpenFromCli();
+		
+			  </script>
 </body>
 </html>

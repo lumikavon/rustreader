@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "rustreader",
+        "title": "rustreader - 文件浏览器",
         "width": 1280,
         "height": 800,
         "resizable": true,

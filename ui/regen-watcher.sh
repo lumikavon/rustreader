@@ -42,13 +42,18 @@ import sys
 
 path = pathlib.Path(sys.argv[1])
 site_name = sys.argv[2]
+site_name = site_name.strip()
+if site_name.lower().startswith("rustreader - "):
+    site_name = site_name[len("rustreader - "):].strip()
+if not site_name:
+    site_name = "文件浏览器"
 text = path.read_text(encoding="utf-8")
 
 title_pattern = re.compile(r"(<title>)(.*?)(</title>)", re.S)
-brand_pattern = re.compile(r'(<a[^>]*class="header__brand"[^>]*>\s*(?:<svg.*?</svg>\s*))([^<]+)', re.S)
+brand_pattern = re.compile(r'(<span[^>]*id="brandText"[^>]*>)(.*?)(</span>)', re.S)
 
 updated = title_pattern.sub(lambda m: f"{m.group(1)}{site_name}{m.group(3)}", text, count=1)
-updated = brand_pattern.sub(lambda m: f"{m.group(1)}{site_name}", updated, count=1)
+updated = brand_pattern.sub(lambda m: f"{m.group(1)}{site_name}{m.group(3)}", updated, count=1)
 
 if updated != text:
     path.write_text(updated, encoding="utf-8")

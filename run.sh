@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./target/release/rustreader
+./target/release/rustreader --site-name "Test-Name" "$(pwd)"
