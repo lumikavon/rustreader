@@ -1,0 +1,17 @@
+{
+  "name": "rustreader",
+  "version": "1.0.0",
+  "description": "A file browser and reader built with Tauri",
+  "author": "virtualink",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lumikavon/rustreader"
+  },
+  "scripts": {
+    "tauri:dev": "cargo tauri dev",
+    "tauri:build": "cargo tauri build",
+    "dev": "cargo tauri dev",
+    "build": "cargo tauri build"
+  }
+}
