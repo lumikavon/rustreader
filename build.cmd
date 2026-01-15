@@ -22,5 +22,5 @@ if errorlevel 1 (
   exit /b 1
 )
 
-cargo tauri build --no-bundle %*
+cargo tauri build %*
 exit /b %errorlevel%
